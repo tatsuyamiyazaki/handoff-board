@@ -57,6 +57,31 @@ export async function transitionTask(id: string, input: TransitionInput): Promis
   return body.data;
 }
 
+/** タスク内容編集の本文。updated_at は楽観ロック照合に必須。 */
+export interface EditInput {
+  title: string;
+  owner: Task['owner'];
+  priority: Task['priority'];
+  action_type: Task['action_type'];
+  handoff_note: string;
+  tags: string[];
+  updated_at: string;
+}
+
+/** PATCH /api/board/:id/details。内容を編集し更新後の Task を返す。失敗（422/404/409）は例外。 */
+export async function editTask(id: string, input: EditInput): Promise<Task> {
+  const res = await fetch(`${API_BASE}/api/board/${encodeURIComponent(id)}/details`, {
+    method: 'PATCH',
+    headers: await authedHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input),
+  });
+  const body = (await res.json()) as ApiEnvelope<Task>;
+  if (!res.ok || !body.success || body.data === null) {
+    throw new Error(body.error ?? `タスクの編集に失敗しました (${res.status})`);
+  }
+  return body.data;
+}
+
 /** POST /api/board/:id/complete。done タスクを archive へ移し、archive のタスクを返す。冪等。失敗は例外。 */
 export async function completeTask(id: string): Promise<Task> {
   const res = await fetch(`${API_BASE}/api/board/${encodeURIComponent(id)}/complete`, {

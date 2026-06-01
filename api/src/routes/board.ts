@@ -6,6 +6,8 @@ import {
   validateCreateTask,
   buildTask,
   applyTransition,
+  validateEditTask,
+  applyEdit,
   ValidationError,
   STATUSES,
   type Status,
@@ -90,6 +92,31 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
       { now, actor },
     );
     const saved = await deps.repository.update(next, req.updated_at);
+    return ok(saved);
+  });
+
+  // タスク内容の編集。status 遷移とは別経路（title/owner/priority/action_type/handoff_note/tags）。
+  // updated_at は楽観ロック照合に必須。検証は shared の validateEditTask、適用は applyEdit。
+  app.patch('/api/board/:id/details', async (request, reply) => {
+    const { actor } = await authenticate(request.headers, deps.auth);
+    const { id } = request.params as { id: string };
+
+    const body = request.body as Record<string, unknown> | null;
+    const expectedUpdatedAt =
+      body && typeof body.updated_at === 'string' ? body.updated_at : '';
+    if (expectedUpdatedAt.trim().length === 0) {
+      throw new ValidationError('updated_at is required for optimistic concurrency');
+    }
+    const normalized = validateEditTask(body);
+
+    const current = await deps.repository.findById(id);
+    if (current === null) {
+      reply.status(404);
+      return fail('task not found');
+    }
+
+    const next = applyEdit(current, normalized, { now, actor });
+    const saved = await deps.repository.update(next, expectedUpdatedAt);
     return ok(saved);
   });
 

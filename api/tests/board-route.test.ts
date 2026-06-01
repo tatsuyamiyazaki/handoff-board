@@ -468,3 +468,100 @@ describe('POST /api/board/:id/complete（完了→アーカイブ）', () => {
     expect(res.statusCode).toBe(401);
   });
 });
+
+describe('PATCH /api/board/:id/details（内容編集）', () => {
+  let app: FastifyInstance;
+  const SEEN = '2026-06-01T00:00:00Z'; // sampleTask の updated_at（楽観ロック照合値）
+
+  const edit = {
+    title: '編集後タイトル',
+    owner: 'human',
+    priority: 'P1',
+    action_type: 'review',
+    handoff_note: '編集後メモ',
+    tags: ['x'],
+    updated_at: SEEN,
+  };
+
+  beforeEach(async () => {
+    const repository = new InMemoryTaskRepository([sampleTask({ id: 't1', status: 'in-progress' })]);
+    app = buildApp({
+      repository,
+      auth: { boardTokens },
+      clock: () => '2026-06-01T10:00:00.000Z',
+    });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('有効な編集で 200・フィールド更新／status は不変／edited の activity 付与', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: edit,
+    });
+    expect(res.statusCode).toBe(200);
+    const t = res.json().data;
+    expect(t.title).toBe('編集後タイトル');
+    expect(t.owner).toBe('human');
+    expect(t.priority).toBe('P1');
+    expect(t.tags).toEqual(['x']);
+    expect(t.status).toBe('in-progress'); // 遷移はしない
+    expect(t.updated_at).toBe('2026-06-01T10:00:00.000Z');
+    expect(t.activity.at(-1).action).toBe('edited');
+  });
+
+  it('不正な入力（title 空）は 422', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { ...edit, title: '' },
+    });
+    expect(res.statusCode).toBe(422);
+  });
+
+  it('updated_at 欠落は 422', async () => {
+    const { updated_at: _omit, ...noVersion } = edit;
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: noVersion,
+    });
+    expect(res.statusCode).toBe(422);
+  });
+
+  it('存在しない id は 404', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/ghost/details',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: edit,
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('updated_at 不一致は 409（楽観ロック）', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { ...edit, updated_at: '2020-01-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(409);
+  });
+
+  it('認証ヘッダー欠落は 401', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      payload: edit,
+    });
+    expect(res.statusCode).toBe(401);
+  });
+});

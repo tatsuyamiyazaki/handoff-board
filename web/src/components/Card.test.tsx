@@ -65,4 +65,52 @@ describe('Card', () => {
     render(<Card task={task({ status: 'in-progress' })} />);
     expect(screen.queryByRole('button', { name: 'アーカイブ' })).not.toBeInTheDocument();
   });
+
+  it('needs-* タスクには「着手」があり、押すと in-progress へ直接遷移し onTransitioned に渡す', async () => {
+    const moved = task({ id: 'a', status: 'in-progress' });
+    const transitionTask = vi.fn().mockResolvedValue(moved);
+    const onTransitioned = vi.fn();
+    render(
+      <Card
+        task={task({ id: 'a', status: 'needs-ai' })}
+        transitionTask={transitionTask}
+        onTransitioned={onTransitioned}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '着手' }));
+
+    await waitFor(() => expect(onTransitioned).toHaveBeenCalledWith(moved));
+    expect(transitionTask).toHaveBeenCalledWith('a', {
+      to: 'in-progress',
+      updated_at: '2026-06-01T00:00:00.000Z',
+    });
+  });
+
+  it('in-progress タスクには「完了」があり、押すと done へ直接遷移する', async () => {
+    const done = task({ id: 'a', status: 'done' });
+    const transitionTask = vi.fn().mockResolvedValue(done);
+    render(<Card task={task({ id: 'a', status: 'in-progress' })} transitionTask={transitionTask} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '完了' }));
+
+    await waitFor(() =>
+      expect(transitionTask).toHaveBeenCalledWith('a', {
+        to: 'done',
+        updated_at: '2026-06-01T00:00:00.000Z',
+      }),
+    );
+  });
+
+  it('in-progress タスクには「引き継ぎ」があり、押すと引き継ぎダイアログが開く', () => {
+    render(<Card task={task({ status: 'in-progress' })} />);
+    fireEvent.click(screen.getByRole('button', { name: '引き継ぎ' }));
+    expect(screen.getByRole('form', { name: 'タスクを引き継ぐ' })).toBeInTheDocument();
+  });
+
+  it('どのタスクにも「編集」があり、押すと編集ダイアログが開く', () => {
+    render(<Card task={task({ status: 'needs-human' })} />);
+    fireEvent.click(screen.getByRole('button', { name: '編集' }));
+    expect(screen.getByRole('form', { name: 'タスクを編集' })).toBeInTheDocument();
+  });
 });

@@ -45,6 +45,20 @@ describe('CreateTaskDialog', () => {
     expect(createTask).toHaveBeenCalledTimes(1);
   });
 
+  it('優先度を選択でき、選んだ値を作成入力に含めて送る', async () => {
+    const createTask = vi.fn().mockResolvedValue(sampleTask());
+    render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={createTask} />);
+
+    fireEvent.change(screen.getByLabelText('タイトル'), { target: { value: '記事' } });
+    fireEvent.change(screen.getByLabelText('引き継ぎメモ'), { target: { value: 'お願い' } });
+    fireEvent.change(screen.getByLabelText('優先度'), { target: { value: 'P0' } });
+    fireEvent.click(screen.getByRole('button', { name: '作成' }));
+
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ priority: 'P0' })),
+    );
+  });
+
   it('サーバーエラー（例外）時はエラーを表示し onCreated を呼ばない', async () => {
     const createTask = vi.fn().mockRejectedValue(new Error('作成に失敗しました (422)'));
     const onCreated = vi.fn();

@@ -2,47 +2,56 @@ import { useState, type FormEvent } from 'react';
 import {
   OWNERS,
   PRIORITIES,
-  INITIAL_STATUSES,
-  validateCreateTask,
+  ACTION_TYPES,
+  validateEditTask,
   type Task,
   type Owner,
   type Priority,
-  type InitialStatus,
+  type ActionType,
 } from '@handoff/shared';
-import { createTask as defaultCreateTask } from '../api-client';
+import { editTask as defaultEditTask, type EditInput } from '../api-client';
 
-const STATUS_LABEL: Record<InitialStatus, string> = {
-  'needs-ai': 'AI待ち',
-  'needs-human': '人間待ち',
-};
-
-interface CreateTaskDialogProps {
+interface EditDialogProps {
+  task: Task;
   onClose: () => void;
-  onCreated: (task: Task) => void;
-  /** テスト用に差し替え可能な作成関数。既定は api-client.createTask。 */
-  createTask?: (input: unknown) => Promise<Task>;
+  onEdited: (task: Task) => void;
+  /** テスト用に差し替え可能な編集関数。既定は api-client.editTask。 */
+  editTask?: (id: string, input: EditInput) => Promise<Task>;
 }
 
-/** タスク作成ダイアログ。送信前に shared の validateCreateTask でクライアント検証する。 */
-export function CreateTaskDialog({
+/** タスク内容（title/owner/priority/action_type/handoff_note/tags）の編集ダイアログ。status は変えない。 */
+export function EditDialog({
+  task,
   onClose,
-  onCreated,
-  createTask = defaultCreateTask,
-}: CreateTaskDialogProps) {
-  const [title, setTitle] = useState('');
-  const [owner, setOwner] = useState<Owner>('ai-batch');
-  const [priority, setPriority] = useState<Priority>('P2');
-  const [handoffNote, setHandoffNote] = useState('');
-  const [status, setStatus] = useState<InitialStatus>('needs-ai');
+  onEdited,
+  editTask = defaultEditTask,
+}: EditDialogProps) {
+  const [title, setTitle] = useState(task.title);
+  const [owner, setOwner] = useState<Owner>(task.owner);
+  const [priority, setPriority] = useState<Priority>(task.priority);
+  const [actionType, setActionType] = useState<ActionType>(task.action_type);
+  const [handoffNote, setHandoffNote] = useState(task.handoff_note);
+  const [tagsText, setTagsText] = useState(task.tags.join(', '));
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    const input = { title, owner, priority, handoff_note: handoffNote, status };
+    const tags = tagsText
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+    const input = {
+      title,
+      owner,
+      priority,
+      action_type: actionType,
+      handoff_note: handoffNote,
+      tags,
+    };
 
     try {
-      validateCreateTask(input); // クライアント側の早期検証（サーバーと同一ルール）。
+      validateEditTask(input); // クライアント側の早期検証（サーバーと同一ルール）。
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
       return;
@@ -51,8 +60,8 @@ export function CreateTaskDialog({
     setSubmitting(true);
     setError(null);
     try {
-      const task = await createTask(input);
-      onCreated(task);
+      const updated = await editTask(task.id, { ...input, updated_at: task.updated_at });
+      onEdited(updated);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -64,11 +73,11 @@ export function CreateTaskDialog({
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <form
         className="create-dialog"
-        aria-label="タスクを作成"
+        aria-label="タスクを編集"
         onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
       >
-        <h2 className="create-dialog__title">タスクを作成</h2>
+        <h2 className="create-dialog__title">タスクを編集</h2>
 
         {error && (
           <p role="alert" className="create-dialog__error">
@@ -104,11 +113,14 @@ export function CreateTaskDialog({
         </label>
 
         <label className="field">
-          <span>初期ステータス</span>
-          <select value={status} onChange={(e) => setStatus(e.target.value as InitialStatus)}>
-            {INITIAL_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
+          <span>種別</span>
+          <select
+            value={actionType}
+            onChange={(e) => setActionType(e.target.value as ActionType)}
+          >
+            {ACTION_TYPES.map((a) => (
+              <option key={a} value={a}>
+                {a}
               </option>
             ))}
           </select>
@@ -119,12 +131,17 @@ export function CreateTaskDialog({
           <textarea value={handoffNote} onChange={(e) => setHandoffNote(e.target.value)} />
         </label>
 
+        <label className="field">
+          <span>タグ（カンマ区切り）</span>
+          <input value={tagsText} onChange={(e) => setTagsText(e.target.value)} />
+        </label>
+
         <div className="create-dialog__actions">
           <button type="button" onClick={onClose}>
             キャンセル
           </button>
           <button type="submit" disabled={submitting}>
-            作成
+            保存
           </button>
         </div>
       </form>
