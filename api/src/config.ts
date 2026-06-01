@@ -19,6 +19,18 @@ export function loadAllowedEmails(raw: string | undefined): string[] {
     .filter((email) => email.length > 0);
 }
 
+/**
+ * 環境変数 ALLOWED_EMAIL_DOMAINS（カンマ区切り）を正規化したドメイン配列にする。
+ * 先頭の `@` は許容して除去し、小文字化する。未設定時は空。
+ */
+export function loadAllowedEmailDomains(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((domain) => domain.trim().toLowerCase().replace(/^@/, ''))
+    .filter((domain) => domain.length > 0);
+}
+
 /** ローカル開発で Web(Vite) が動く既定オリジン。CORS_ORIGIN 未設定時に許可する。 */
 const DEV_WEB_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 

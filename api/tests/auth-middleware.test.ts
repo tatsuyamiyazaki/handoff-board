@@ -92,3 +92,61 @@ describe('authenticate（人間 Firebase Bearer パス）', () => {
     expect(err.status).toBe(401);
   });
 });
+
+describe('authenticate（人間パスのドメイン許可 allowedEmailDomains）', () => {
+  it('許可ドメインに一致するメールは、完全一致リストに無くても human として通す', async () => {
+    const tokenVerifier = fakeVerifier({ 'sb-token': 'taro@sunbit.co.jp' });
+    const result = await authenticate(
+      { authorization: 'Bearer sb-token' },
+      { boardTokens, allowedEmails: [], allowedEmailDomains: ['sunbit.co.jp'], tokenVerifier },
+    );
+    expect(result).toEqual({ actor: 'taro@sunbit.co.jp', type: 'human' });
+  });
+
+  it('ドメイン照合は大文字小文字を無視する', async () => {
+    const tokenVerifier = fakeVerifier({ 'sb-token': 'Hanako@SunBit.co.jp' });
+    const result = await authenticate(
+      { authorization: 'Bearer sb-token' },
+      { boardTokens, allowedEmailDomains: ['sunbit.co.jp'], tokenVerifier },
+    );
+    expect(result).toEqual({ actor: 'Hanako@SunBit.co.jp', type: 'human' });
+  });
+
+  it('許可ドメイン外のメールは 403', async () => {
+    const tokenVerifier = fakeVerifier({ 'x-token': 'someone@other.example' });
+    const err = await caught(() =>
+      authenticate(
+        { authorization: 'Bearer x-token' },
+        { boardTokens, allowedEmailDomains: ['sunbit.co.jp'], tokenVerifier },
+      ),
+    );
+    expect(err).toBeInstanceOf(AuthError);
+    expect(err.status).toBe(403);
+  });
+
+  it('部分一致のサブドメイン偽装（evil-sunbit.co.jp）は通さない', async () => {
+    const tokenVerifier = fakeVerifier({ 'evil-token': 'attacker@evil-sunbit.co.jp' });
+    const err = await caught(() =>
+      authenticate(
+        { authorization: 'Bearer evil-token' },
+        { boardTokens, allowedEmailDomains: ['sunbit.co.jp'], tokenVerifier },
+      ),
+    );
+    expect(err).toBeInstanceOf(AuthError);
+    expect(err.status).toBe(403);
+  });
+
+  it('完全一致リストとドメインリストは併用でき、どちらか一方を満たせば通す', async () => {
+    const tokenVerifier = fakeVerifier({ 'g-token': 'tatsuya.miyazaki@gmail.com' });
+    const result = await authenticate(
+      { authorization: 'Bearer g-token' },
+      {
+        boardTokens,
+        allowedEmails: ['tatsuya.miyazaki@gmail.com'],
+        allowedEmailDomains: ['sunbit.co.jp'],
+        tokenVerifier,
+      },
+    );
+    expect(result).toEqual({ actor: 'tatsuya.miyazaki@gmail.com', type: 'human' });
+  });
+});

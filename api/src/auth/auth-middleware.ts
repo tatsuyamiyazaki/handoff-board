@@ -14,8 +14,10 @@ export interface TokenVerifier {
 
 export interface AuthConfig {
   boardTokens: BoardTokenMap;
-  /** 人間パスで通過を許すメールアドレス。ALLOWED_EMAILS 由来。 */
+  /** 人間パスで通過を許すメールアドレス（完全一致）。ALLOWED_EMAILS 由来。 */
   allowedEmails?: string[];
+  /** 人間パスで通過を許すメールドメイン（@以降の完全一致）。ALLOWED_EMAIL_DOMAINS 由来。 */
+  allowedEmailDomains?: string[];
   /** Firebase ID トークン検証器。未設定なら人間パスは利用不可。 */
   tokenVerifier?: TokenVerifier;
 }
@@ -69,9 +71,9 @@ export async function authenticate(headers: Headers, config: AuthConfig): Promis
 }
 
 /**
- * Firebase ID トークンを検証し、許可リスト内なら actor=メールの human を返す。
+ * Firebase ID トークンを検証し、許可されたメール/ドメインなら actor=メールの human を返す。
  * - 検証器未設定 / トークン不正 → 401。
- * - 検証は通るが許可リスト外 → 403。
+ * - 検証は通るが許可リスト・許可ドメインのいずれにも合致しない → 403。
  */
 async function authenticateHuman(idToken: string, config: AuthConfig): Promise<AuthResult> {
   if (config.tokenVerifier === undefined) {
@@ -85,10 +87,24 @@ async function authenticateHuman(idToken: string, config: AuthConfig): Promise<A
     throw new AuthError(401, 'invalid id token');
   }
 
-  const allowed = config.allowedEmails ?? [];
-  if (!allowed.includes(email.toLowerCase())) {
+  if (!isEmailAllowed(email, config)) {
     throw new AuthError(403, 'email not allowed');
   }
 
   return { actor: email, type: 'human' };
+}
+
+/** メール完全一致リスト、または @以降のドメイン一致のいずれかを満たすか判定する。 */
+function isEmailAllowed(email: string, config: AuthConfig): boolean {
+  const normalized = email.toLowerCase();
+  if ((config.allowedEmails ?? []).includes(normalized)) {
+    return true;
+  }
+  // 末尾一致ではなく @ で分割したドメイン部の完全一致で照合する
+  // （evil-sunbit.co.jp のような偽装を弾くため）。
+  const domain = normalized.split('@')[1];
+  if (domain === undefined) {
+    return false;
+  }
+  return (config.allowedEmailDomains ?? []).includes(domain);
 }

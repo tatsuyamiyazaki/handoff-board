@@ -2,7 +2,12 @@ import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { buildApp } from './app.js';
-import { loadBoardTokens, loadAllowedEmails, loadCorsOrigins } from './config.js';
+import {
+  loadBoardTokens,
+  loadAllowedEmails,
+  loadAllowedEmailDomains,
+  loadCorsOrigins,
+} from './config.js';
 import type { AuthConfig, TokenVerifier } from './auth/auth-middleware.js';
 import { FirebaseTokenVerifier } from './auth/firebase-token-verifier.js';
 import { FirestoreTaskRepository } from './repository/firestore-task-repository.js';
@@ -34,6 +39,7 @@ const { repository, tokenVerifier } = createBackend();
 const auth: AuthConfig = {
   boardTokens: loadBoardTokens(process.env.BOARD_TOKENS),
   allowedEmails: loadAllowedEmails(process.env.ALLOWED_EMAILS),
+  allowedEmailDomains: loadAllowedEmailDomains(process.env.ALLOWED_EMAIL_DOMAINS),
   tokenVerifier,
 };
 
