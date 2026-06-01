@@ -214,6 +214,53 @@ body {
 }
 
 /* ── Board / lanes ───────────────────────────────────────────────────── */
+/* サマリ件数 + フィルタ（ADR-0004）。ヘッダー直下、ボードの上に置く。 */
+.board-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg) var(--space-xl);
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--hairline-strong);
+}
+
+.board-summary {
+  display: flex;
+  gap: var(--space-xl);
+  margin: 0;
+}
+
+.board-summary .stat {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-xxs);
+}
+
+.board-summary .stat__label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+
+.board-summary .stat__value {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-dark);
+}
+
+.board-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md) var(--space-lg);
+}
+
 .board {
   display: grid;
   grid-template-columns: repeat(5, minmax(220px, 1fr));

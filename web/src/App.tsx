@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Board } from './components/Board';
+import { BoardControls } from './components/BoardControls';
 import { CreateTaskDialog } from './components/CreateTaskDialog';
+import { filterTasks, ALL, type BoardFilter } from './lib/board-view';
 import { useBoard, BOARD_QUERY_KEY } from './hooks/useBoard';
 import {
   isAuthConfigured,
@@ -17,9 +19,16 @@ export function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [filter, setFilter] = useState<BoardFilter>({
+    owner: ALL,
+    project: ALL,
+    milestone: ALL,
+  });
   // サインイン中のみボードを取得する。未ログイン時は他人のタスクを一切読み込まない。
   const isSignedIn = email !== null;
   const { data: tasks = [], error } = useBoard({ enabled: isSignedIn });
+  // サマリ・選択肢は全タスク、カンバンには絞り込み後を渡す。
+  const visibleTasks = filterTasks(tasks, filter);
 
   useEffect(() => onUserChange(setEmail), []);
 
@@ -84,12 +93,15 @@ export function App() {
         </p>
       )}
       {isSignedIn ? (
-        <Board
-          tasks={tasks}
-          onTransitioned={refreshBoard}
-          onArchived={refreshBoard}
-          onDeleted={refreshBoard}
-        />
+        <>
+          <BoardControls tasks={tasks} filter={filter} onFilterChange={setFilter} />
+          <Board
+            tasks={visibleTasks}
+            onTransitioned={refreshBoard}
+            onArchived={refreshBoard}
+            onDeleted={refreshBoard}
+          />
+        </>
       ) : (
         <p className="app__signin-prompt">
           サインインすると、あなたが作成したタスクのボードが表示されます。
