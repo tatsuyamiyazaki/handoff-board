@@ -1,30 +1,43 @@
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { buildApp } from './app.js';
-import { loadBoardTokens } from './config.js';
+import { loadBoardTokens, loadAllowedEmails } from './config.js';
+import type { AuthConfig, TokenVerifier } from './auth/auth-middleware.js';
+import { FirebaseTokenVerifier } from './auth/firebase-token-verifier.js';
 import { FirestoreTaskRepository } from './repository/firestore-task-repository.js';
 import { InMemoryTaskRepository } from './repository/in-memory-task-repository.js';
 import type { TaskRepository } from './repository/task-repository.js';
 import { devSeed } from './dev-seed.js';
 
-const auth = { boardTokens: loadBoardTokens(process.env.BOARD_TOKENS) };
-
-// Firestore（エミュレータ or 本番）に繋がる構成なら Firestore、無ければ in-memory + シード。
-// Java/firebase CLI 未導入のローカルでも API を起動できるようにするためのフォールバック。
-function createRepository(): TaskRepository {
-  const useFirestore =
+// Firestore（エミュレータ or 本番）に繋がる構成なら Firebase を初期化し、
+// Firestore リポジトリと ID トークン検証器を生成する。
+// Java/firebase CLI 未導入のローカルでは初期化せず、in-memory + シードで起動する（人間パスは利用不可）。
+function createBackend(): { repository: TaskRepository; tokenVerifier?: TokenVerifier } {
+  const useFirebase =
     process.env.FIRESTORE_EMULATOR_HOST || process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (useFirestore) {
-    initializeApp({
-      credential: process.env.GOOGLE_APPLICATION_CREDENTIALS ? applicationDefault() : undefined,
-      projectId: process.env.GCLOUD_PROJECT,
-    });
-    return new FirestoreTaskRepository(getFirestore());
+  if (!useFirebase) {
+    return { repository: new InMemoryTaskRepository(devSeed) };
   }
-  return new InMemoryTaskRepository(devSeed);
+
+  initializeApp({
+    credential: process.env.GOOGLE_APPLICATION_CREDENTIALS ? applicationDefault() : undefined,
+    projectId: process.env.GCLOUD_PROJECT,
+  });
+  return {
+    repository: new FirestoreTaskRepository(getFirestore()),
+    tokenVerifier: new FirebaseTokenVerifier(getAuth()),
+  };
 }
 
-const app = buildApp({ repository: createRepository(), auth });
+const { repository, tokenVerifier } = createBackend();
+const auth: AuthConfig = {
+  boardTokens: loadBoardTokens(process.env.BOARD_TOKENS),
+  allowedEmails: loadAllowedEmails(process.env.ALLOWED_EMAILS),
+  tokenVerifier,
+};
+
+const app = buildApp({ repository, auth });
 const port = Number(process.env.PORT ?? 8787);
 
 app

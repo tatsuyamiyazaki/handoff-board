@@ -9,3 +9,12 @@ export function loadBoardTokens(raw: string | undefined): BoardTokenMap {
   }
   return parsed as BoardTokenMap;
 }
+
+/** 環境変数 ALLOWED_EMAILS（カンマ区切り）を正規化した配列にする。未設定時は空。 */
+export function loadAllowedEmails(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter((email) => email.length > 0);
+}

@@ -202,3 +202,37 @@ body {
   border-radius: 2px;
   color: var(--color-muted);
 }
+
+/* #02: ヘッダーの認証 UI。タイトル左・サインイン右の2分割。 */
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.app__auth {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.app__user {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-text-muted, oklch(55% 0 0));
+}
+.app__auth button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border, oklch(85% 0 0));
+  border-radius: 0.5rem;
+  background: var(--color-surface, oklch(99% 0 0));
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--duration-fast, 150ms) ease;
+}
+.app__auth button:hover:not(:disabled) {
+  background: var(--color-surface-hover, oklch(95% 0 0));
+}
+.app__auth button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

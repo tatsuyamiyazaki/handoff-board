@@ -11,7 +11,7 @@ export interface BoardRouteDeps {
 /** 処理中ボードの参照系ルート。#01 は GET /api/board のみ。 */
 export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps): void {
   app.get('/api/board', async (request) => {
-    authenticate(request.headers, deps.auth);
+    await authenticate(request.headers, deps.auth);
     const tasks = await deps.repository.findAll();
     return ok(tasks);
   });
