@@ -137,4 +137,16 @@ describe('Card', () => {
     render(<Card task={task({ owner: 'ai-batch', agent: null })} />);
     expect(screen.getByRole('img', { name: '担当: AI' })).toBeInTheDocument();
   });
+
+  it('project / milestone があればカードに表示する（ADR-0004）', () => {
+    render(<Card task={task({ project: 'ニュースレター', milestone: '6月号' })} />);
+    expect(screen.getByText('ニュースレター')).toBeInTheDocument();
+    expect(screen.getByText('6月号')).toBeInTheDocument();
+  });
+
+  it('project / milestone が null のときはそのラベルを表示しない', () => {
+    render(<Card task={task({ project: null, milestone: null })} />);
+    expect(screen.queryByText('プロジェクト')).not.toBeInTheDocument();
+    expect(screen.queryByText('マイルストーン')).not.toBeInTheDocument();
+  });
 });

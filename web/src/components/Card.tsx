@@ -118,6 +118,18 @@ export function Card({
           <dt>type</dt>
           <dd>{task.action_type}</dd>
         </div>
+        {task.project && (
+          <div>
+            <dt>project</dt>
+            <dd>{task.project}</dd>
+          </div>
+        )}
+        {task.milestone && (
+          <div>
+            <dt>milestone</dt>
+            <dd>{task.milestone}</dd>
+          </div>
+        )}
       </dl>
       {isBlocked && task.blocked_reason && (
         <p className="card__blocked-reason">⛔ {task.blocked_reason}</p>
