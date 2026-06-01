@@ -52,6 +52,57 @@ describe('EditDialog', () => {
     expect(editTask).not.toHaveBeenCalled();
   });
 
+  it('project/milestone をプリフィルし、編集して送る（ADR-0004）', async () => {
+    const editTask = vi.fn().mockResolvedValue(task());
+    render(
+      <EditDialog
+        task={task({ project: '旧PJ', milestone: '旧MS' })}
+        onClose={() => {}}
+        onEdited={() => {}}
+        editTask={editTask}
+      />,
+    );
+
+    expect(screen.getByDisplayValue('旧PJ')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('マイルストーン'), { target: { value: 'v2' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() =>
+      expect(editTask).toHaveBeenCalledWith(
+        't1',
+        expect.objectContaining({ project: '旧PJ', milestone: 'v2' }),
+      ),
+    );
+  });
+
+  it('AI 系 owner では agent をプリフィルし、変更して送る（ADR-0004）', async () => {
+    const editTask = vi.fn().mockResolvedValue(task());
+    render(
+      <EditDialog
+        task={task({ owner: 'ai-batch', agent: 'codex' })}
+        onClose={() => {}}
+        onEdited={() => {}}
+        editTask={editTask}
+      />,
+    );
+
+    const agentSelect = screen.getByLabelText('AI（担当）');
+    expect(agentSelect).toHaveValue('codex');
+    fireEvent.change(agentSelect, { target: { value: 'gemini' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() =>
+      expect(editTask).toHaveBeenCalledWith('t1', expect.objectContaining({ agent: 'gemini' })),
+    );
+  });
+
+  it('owner=human のタスクでは AI（担当）欄を表示しない（ADR-0004 不変条件）', () => {
+    render(
+      <EditDialog task={task({ owner: 'human', agent: null })} onClose={() => {}} onEdited={() => {}} />,
+    );
+    expect(screen.queryByLabelText('AI（担当）')).not.toBeInTheDocument();
+  });
+
   it('タグはカンマ区切りを配列に正規化して送る', async () => {
     const editTask = vi.fn().mockResolvedValue(task());
     render(<EditDialog task={task()} onClose={() => {}} onEdited={() => {}} editTask={editTask} />);

@@ -62,6 +62,59 @@ describe('CreateTaskDialog', () => {
     );
   });
 
+  it('プロジェクトを入力でき、作成入力に含めて送る（ADR-0004）', async () => {
+    const createTask = vi.fn().mockResolvedValue(sampleTask());
+    render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={createTask} />);
+
+    fireEvent.change(screen.getByLabelText('タイトル'), { target: { value: '記事' } });
+    fireEvent.change(screen.getByLabelText('引き継ぎメモ'), { target: { value: 'お願い' } });
+    fireEvent.change(screen.getByLabelText('プロジェクト'), { target: { value: 'ニュースレター' } });
+    fireEvent.click(screen.getByRole('button', { name: '作成' }));
+
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({ project: 'ニュースレター' }),
+      ),
+    );
+  });
+
+  it('マイルストーンを入力でき、作成入力に含めて送る（ADR-0004）', async () => {
+    const createTask = vi.fn().mockResolvedValue(sampleTask());
+    render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={createTask} />);
+
+    fireEvent.change(screen.getByLabelText('タイトル'), { target: { value: '記事' } });
+    fireEvent.change(screen.getByLabelText('引き継ぎメモ'), { target: { value: 'お願い' } });
+    fireEvent.change(screen.getByLabelText('マイルストーン'), { target: { value: '6月号' } });
+    fireEvent.click(screen.getByRole('button', { name: '作成' }));
+
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ milestone: '6月号' })),
+    );
+  });
+
+  it('AI 系 owner では AI（担当）を選べ、選んだ agent を作成入力に含めて送る（ADR-0004）', async () => {
+    const createTask = vi.fn().mockResolvedValue(sampleTask());
+    render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={createTask} />);
+
+    fireEvent.change(screen.getByLabelText('タイトル'), { target: { value: '記事' } });
+    fireEvent.change(screen.getByLabelText('引き継ぎメモ'), { target: { value: 'お願い' } });
+    fireEvent.change(screen.getByLabelText('AI（担当）'), { target: { value: 'codex' } });
+    fireEvent.click(screen.getByRole('button', { name: '作成' }));
+
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ agent: 'codex' })),
+    );
+  });
+
+  it('owner=human を選ぶと AI（担当）欄は表示されない（ADR-0004 不変条件のUI反映）', () => {
+    const createTask = vi.fn();
+    render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={createTask} />);
+
+    fireEvent.change(screen.getByLabelText('担当'), { target: { value: 'human' } });
+
+    expect(screen.queryByLabelText('AI（担当）')).not.toBeInTheDocument();
+  });
+
   it('サーバーエラー（例外）時はエラーを表示し onCreated を呼ばない', async () => {
     const createTask = vi.fn().mockRejectedValue(new Error('作成に失敗しました (422)'));
     const onCreated = vi.fn();

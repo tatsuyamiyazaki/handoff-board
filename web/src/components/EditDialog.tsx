@@ -8,8 +8,10 @@ import {
   type Owner,
   type Priority,
   type ActionType,
+  type Agent,
 } from '@handoff/shared';
 import { editTask as defaultEditTask, type EditInput } from '../api-client';
+import { AgentField } from './AgentField';
 import { Icon } from './icons';
 
 interface EditDialogProps {
@@ -33,8 +35,14 @@ export function EditDialog({
   const [actionType, setActionType] = useState<ActionType>(task.action_type);
   const [handoffNote, setHandoffNote] = useState(task.handoff_note);
   const [tagsText, setTagsText] = useState(task.tags.join(', '));
+  const [project, setProject] = useState(task.project ?? '');
+  const [milestone, setMilestone] = useState(task.milestone ?? '');
+  const [agent, setAgent] = useState<Agent | ''>(task.agent ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // ADR-0004: owner=human は agent を持てない。AI 系のときだけ担当 AI を編集できる。
+  const isAiOwner = owner !== 'human';
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -49,6 +57,10 @@ export function EditDialog({
       action_type: actionType,
       handoff_note: handoffNote,
       tags,
+      project,
+      milestone,
+      // human のとき agent は必ず null（ADR-0004 不変条件）。AI 系で未選択も null。
+      agent: isAiOwner && agent !== '' ? agent : null,
     };
 
     try {
@@ -125,6 +137,18 @@ export function EditDialog({
               </option>
             ))}
           </select>
+        </label>
+
+        {isAiOwner && <AgentField value={agent} onChange={setAgent} />}
+
+        <label className="field">
+          <span>プロジェクト</span>
+          <input value={project} onChange={(e) => setProject(e.target.value)} />
+        </label>
+
+        <label className="field">
+          <span>マイルストーン</span>
+          <input value={milestone} onChange={(e) => setMilestone(e.target.value)} />
         </label>
 
         <label className="field">

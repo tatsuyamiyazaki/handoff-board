@@ -8,8 +8,10 @@ import {
   type Owner,
   type Priority,
   type InitialStatus,
+  type Agent,
 } from '@handoff/shared';
 import { createTask as defaultCreateTask } from '../api-client';
+import { AgentField } from './AgentField';
 import { Icon } from './icons';
 
 const STATUS_LABEL: Record<InitialStatus, string> = {
@@ -35,12 +37,28 @@ export function CreateTaskDialog({
   const [priority, setPriority] = useState<Priority>('P2');
   const [handoffNote, setHandoffNote] = useState('');
   const [status, setStatus] = useState<InitialStatus>('needs-ai');
+  const [project, setProject] = useState('');
+  const [milestone, setMilestone] = useState('');
+  const [agent, setAgent] = useState<Agent | ''>('');
+
+  // ADR-0004: owner=human は agent を持てない。AI 系のときだけ担当 AI を選べる。
+  const isAiOwner = owner !== 'human';
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    const input = { title, owner, priority, handoff_note: handoffNote, status };
+    const input = {
+      title,
+      owner,
+      priority,
+      handoff_note: handoffNote,
+      status,
+      project,
+      milestone,
+      // human のとき agent は必ず null（ADR-0004 不変条件）。AI 系で未選択も null。
+      agent: isAiOwner && agent !== '' ? agent : null,
+    };
 
     try {
       validateCreateTask(input); // クライアント側の早期検証（サーバーと同一ルール）。
@@ -113,6 +131,18 @@ export function CreateTaskDialog({
               </option>
             ))}
           </select>
+        </label>
+
+        {isAiOwner && <AgentField value={agent} onChange={setAgent} />}
+
+        <label className="field">
+          <span>プロジェクト</span>
+          <input value={project} onChange={(e) => setProject(e.target.value)} />
+        </label>
+
+        <label className="field">
+          <span>マイルストーン</span>
+          <input value={milestone} onChange={(e) => setMilestone(e.target.value)} />
         </label>
 
         <label className="field">
