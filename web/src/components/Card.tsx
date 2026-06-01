@@ -19,6 +19,12 @@ const OWNER_LABEL: Record<Task['owner'], string> = {
   'ai-interactive': 'AI(対話)',
 };
 
+/** 担当ドットの表示名（ADR-0004）。human は HUMAN、AI系は agent 値、未割当の AI系は AI。 */
+function assigneeLabel(task: Task): string {
+  if (task.owner === 'human') return 'HUMAN';
+  return task.agent ? task.agent.toUpperCase() : 'AI';
+}
+
 interface CardProps {
   task: Task;
   /** 遷移成功時に更新後タスクを親へ通知する（Board→App でレーン移動に反映）。 */
@@ -90,6 +96,14 @@ export function Card({
 
   return (
     <article className="card" data-priority={task.priority}>
+      <span
+        className="card__assignee"
+        role="img"
+        aria-label={`担当: ${assigneeLabel(task)}`}
+        data-assignee={assigneeLabel(task)}
+      >
+        {assigneeLabel(task)}
+      </span>
       <h3 className="card__title">{task.title}</h3>
       <dl className="card__meta">
         <div>

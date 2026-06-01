@@ -122,4 +122,19 @@ describe('Card', () => {
     fireEvent.click(screen.getByRole('button', { name: '削除' }));
     expect(screen.getByRole('alertdialog', { name: 'タスクを削除' })).toBeInTheDocument();
   });
+
+  it('AI 系 owner で agent 指定時、担当ドットに agent 値を表示する（ADR-0004）', () => {
+    render(<Card task={task({ owner: 'ai-batch', agent: 'codex' })} />);
+    expect(screen.getByRole('img', { name: '担当: CODEX' })).toBeInTheDocument();
+  });
+
+  it('owner=human の担当ドットは HUMAN（agent は持たない）', () => {
+    render(<Card task={task({ owner: 'human', agent: null })} />);
+    expect(screen.getByRole('img', { name: '担当: HUMAN' })).toBeInTheDocument();
+  });
+
+  it('AI 系 owner で agent 未割当時は担当ドットを AI にフォールバックする', () => {
+    render(<Card task={task({ owner: 'ai-batch', agent: null })} />);
+    expect(screen.getByRole('img', { name: '担当: AI' })).toBeInTheDocument();
+  });
 });

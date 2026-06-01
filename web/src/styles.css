@@ -287,6 +287,43 @@ body {
   background: var(--surface-elevated);
 }
 
+.card__assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xxs);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 var(--space-xs);
+}
+
+/* 担当ドット本体（ADR-0004: agent ごとに色対応を1行ずつ足す）。 */
+.card__assignee::before {
+  content: '';
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.card__assignee[data-assignee='HUMAN'] {
+  color: oklch(72% 0.13 145);
+}
+.card__assignee[data-assignee='CHATGPT'] {
+  color: oklch(70% 0.15 165);
+}
+.card__assignee[data-assignee='CODEX'] {
+  color: oklch(72% 0.15 250);
+}
+.card__assignee[data-assignee='GEMINI'] {
+  color: oklch(72% 0.17 300);
+}
+.card__assignee[data-assignee='CLAUDE-CODE'] {
+  color: oklch(72% 0.16 40);
+}
+
 .card__title {
   font-family: var(--font-text);
   font-weight: 400;
