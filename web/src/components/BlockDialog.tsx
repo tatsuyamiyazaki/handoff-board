@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Task } from '@handoff/shared';
 import { transitionTask as defaultTransitionTask, type TransitionInput } from '../api-client';
+import { Icon } from './icons';
 
 interface BlockDialogProps {
   task: Task;
@@ -66,11 +67,11 @@ export function BlockDialog({
         </label>
 
         <div className="block-dialog__actions">
-          <button type="button" onClick={onClose}>
-            キャンセル
+          <button type="button" aria-label="キャンセル" title="キャンセル" onClick={onClose}>
+            <Icon name="x" />
           </button>
-          <button type="submit" disabled={submitting}>
-            ブロック
+          <button type="submit" aria-label="ブロック" title="ブロック" disabled={submitting}>
+            <Icon name="ban" />
           </button>
         </div>
       </form>

@@ -10,6 +10,7 @@ import {
   type InitialStatus,
 } from '@handoff/shared';
 import { createTask as defaultCreateTask } from '../api-client';
+import { Icon } from './icons';
 
 const STATUS_LABEL: Record<InitialStatus, string> = {
   'needs-ai': 'AI待ち',
@@ -120,11 +121,11 @@ export function CreateTaskDialog({
         </label>
 
         <div className="create-dialog__actions">
-          <button type="button" onClick={onClose}>
-            キャンセル
+          <button type="button" aria-label="キャンセル" title="キャンセル" onClick={onClose}>
+            <Icon name="x" />
           </button>
-          <button type="submit" disabled={submitting}>
-            作成
+          <button type="submit" aria-label="作成" title="作成" disabled={submitting}>
+            <Icon name="plus" />
           </button>
         </div>
       </form>

@@ -10,6 +10,7 @@ import {
   type ActionType,
 } from '@handoff/shared';
 import { editTask as defaultEditTask, type EditInput } from '../api-client';
+import { Icon } from './icons';
 
 interface EditDialogProps {
   task: Task;
@@ -137,11 +138,11 @@ export function EditDialog({
         </label>
 
         <div className="create-dialog__actions">
-          <button type="button" onClick={onClose}>
-            キャンセル
+          <button type="button" aria-label="キャンセル" title="キャンセル" onClick={onClose}>
+            <Icon name="x" />
           </button>
-          <button type="submit" disabled={submitting}>
-            保存
+          <button type="submit" aria-label="保存" title="保存" disabled={submitting}>
+            <Icon name="check" />
           </button>
         </div>
       </form>

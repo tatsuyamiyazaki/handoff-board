@@ -128,28 +128,46 @@ body {
 }
 
 /* All chrome buttons inherit the signature transparent outline pill. */
+/* Header, card, and dialog actions are all icon-only circular buttons (button-icon spec). */
 .app__auth button,
 .card__actions button,
 .create-dialog__actions button,
 .block-dialog__actions button,
 .unblock-dialog__actions button {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: 12px;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
   color: var(--on-dark);
   background: transparent;
-  border: 1px solid var(--on-dark);
-  border-radius: var(--rounded-pill);
-  padding: 12px var(--space-lg);
-  min-height: 44px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--rounded-full);
   cursor: pointer;
   transition:
     color 200ms ease,
     background 200ms ease,
     border-color 200ms ease,
     opacity 200ms ease;
+}
+
+.app__auth button,
+.create-dialog__actions button,
+.block-dialog__actions button,
+.unblock-dialog__actions button {
+  width: 40px;
+  height: 40px;
+}
+
+.card__actions button {
+  width: 36px;
+  height: 36px;
+}
+
+.app__auth button:hover:not(:disabled),
+.card__actions button:hover:not(:disabled),
+.create-dialog__actions button:hover:not(:disabled),
+.block-dialog__actions button:hover:not(:disabled),
+.unblock-dialog__actions button:hover:not(:disabled) {
+  border-color: var(--on-dark);
 }
 
 .app__auth button:active,
@@ -168,6 +186,10 @@ body {
 .unblock-dialog__actions button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.icon {
+  display: block;
 }
 
 .app__error {
@@ -341,16 +363,9 @@ body {
 
 .card__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-xs);
   margin-top: var(--space-lg);
-}
-
-/* Card-level actions sit a notch smaller than the primary CTA. */
-.card__actions button {
-  font-size: 11px;
-  letter-spacing: 2px;
-  padding: 10px var(--space-md);
-  min-height: 40px;
 }
 
 /* ── Dialogs ─────────────────────────────────────────────────────────── */

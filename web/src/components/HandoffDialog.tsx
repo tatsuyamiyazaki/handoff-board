@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Task } from '@handoff/shared';
 import { transitionTask as defaultTransitionTask, type TransitionInput } from '../api-client';
+import { Icon } from './icons';
 
 /** 引き継ぎ先（in-progress → needs-*）。 */
 type HandoffTarget = 'needs-ai' | 'needs-human';
@@ -86,11 +87,11 @@ export function HandoffDialog({
         </label>
 
         <div className="unblock-dialog__actions">
-          <button type="button" onClick={onClose}>
-            キャンセル
+          <button type="button" aria-label="キャンセル" title="キャンセル" onClick={onClose}>
+            <Icon name="x" />
           </button>
-          <button type="submit" disabled={submitting}>
-            引き継ぐ
+          <button type="submit" aria-label="引き継ぐ" title="引き継ぐ" disabled={submitting}>
+            <Icon name="handoff" />
           </button>
         </div>
       </form>

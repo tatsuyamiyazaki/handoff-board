@@ -4,6 +4,7 @@ import { BlockDialog } from './BlockDialog';
 import { UnblockDialog } from './UnblockDialog';
 import { HandoffDialog } from './HandoffDialog';
 import { EditDialog } from './EditDialog';
+import { Icon } from './icons';
 import {
   completeTask as defaultCompleteTask,
   transitionTask as defaultTransitionTask,
@@ -111,37 +112,55 @@ export function Card({
       )}
       <div className="card__actions">
         {canStart && (
-          <button type="button" disabled={busy} onClick={() => void handleDirect('in-progress')}>
-            着手
+          <button
+            type="button"
+            aria-label="着手"
+            title="着手"
+            disabled={busy}
+            onClick={() => void handleDirect('in-progress')}
+          >
+            <Icon name="play" />
           </button>
         )}
         {canHandoff && (
-          <button type="button" onClick={() => setDialog('handoff')}>
-            引き継ぎ
+          <button type="button" aria-label="引き継ぎ" title="引き継ぎ" onClick={() => setDialog('handoff')}>
+            <Icon name="handoff" />
           </button>
         )}
         {canComplete && (
-          <button type="button" disabled={busy} onClick={() => void handleDirect('done')}>
-            完了
+          <button
+            type="button"
+            aria-label="完了"
+            title="完了"
+            disabled={busy}
+            onClick={() => void handleDirect('done')}
+          >
+            <Icon name="check" />
           </button>
         )}
         {canBlock && (
-          <button type="button" onClick={() => setDialog('block')}>
-            ブロック
+          <button type="button" aria-label="ブロック" title="ブロック" onClick={() => setDialog('block')}>
+            <Icon name="ban" />
           </button>
         )}
         {isBlocked && (
-          <button type="button" onClick={() => setDialog('unblock')}>
-            解除
+          <button type="button" aria-label="解除" title="解除" onClick={() => setDialog('unblock')}>
+            <Icon name="unlock" />
           </button>
         )}
         {isDone && (
-          <button type="button" disabled={busy} onClick={() => void handleArchive()}>
-            アーカイブ
+          <button
+            type="button"
+            aria-label="アーカイブ"
+            title="アーカイブ"
+            disabled={busy}
+            onClick={() => void handleArchive()}
+          >
+            <Icon name="archive" />
           </button>
         )}
-        <button type="button" onClick={() => setDialog('edit')}>
-          編集
+        <button type="button" aria-label="編集" title="編集" onClick={() => setDialog('edit')}>
+          <Icon name="pencil" />
         </button>
       </div>
 

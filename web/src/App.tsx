@@ -9,6 +9,7 @@ import {
   signInWithGoogle,
   signOutUser,
 } from './auth/firebase-auth';
+import { Icon } from './components/icons';
 
 // #02 Firebase サインイン、#03 タスク作成、#05/#06 遷移・アーカイブ、#08 ポーリング自動更新。
 export function App() {
@@ -39,20 +40,32 @@ export function App() {
         </div>
         <div className="app__auth">
           {isSignedIn && (
-            <button type="button" onClick={() => setShowCreate(true)}>
-              新規タスク
+            <button
+              type="button"
+              aria-label="新規タスク"
+              title="新規タスク"
+              onClick={() => setShowCreate(true)}
+            >
+              <Icon name="plus" />
             </button>
           )}
           {email ? (
             <>
               <span className="app__user">{email}</span>
-              <button type="button" onClick={() => void signOutUser()}>
-                サインアウト
+              <button
+                type="button"
+                aria-label="サインアウト"
+                title="サインアウト"
+                onClick={() => void signOutUser()}
+              >
+                <Icon name="log-out" />
               </button>
             </>
           ) : (
             <button
               type="button"
+              aria-label="Google でサインイン"
+              title="Google でサインイン"
               disabled={!isAuthConfigured()}
               onClick={() =>
                 void signInWithGoogle().catch((e: unknown) =>
@@ -60,7 +73,7 @@ export function App() {
                 )
               }
             >
-              Google でサインイン
+              <Icon name="log-in" />
             </button>
           )}
         </div>

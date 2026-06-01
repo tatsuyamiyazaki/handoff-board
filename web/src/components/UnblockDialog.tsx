@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Task } from '@handoff/shared';
 import { transitionTask as defaultTransitionTask, type TransitionInput } from '../api-client';
+import { Icon } from './icons';
 
 /** 解除の引き継ぎ先（blocked → needs-*）。 */
 type HandoffTarget = 'needs-ai' | 'needs-human';
@@ -90,11 +91,11 @@ export function UnblockDialog({
         </label>
 
         <div className="unblock-dialog__actions">
-          <button type="button" onClick={onClose}>
-            キャンセル
+          <button type="button" aria-label="キャンセル" title="キャンセル" onClick={onClose}>
+            <Icon name="x" />
           </button>
-          <button type="submit" disabled={submitting}>
-            解除
+          <button type="submit" aria-label="解除" title="解除" disabled={submitting}>
+            <Icon name="unlock" />
           </button>
         </div>
       </form>
