@@ -40,4 +40,22 @@ describe('Board', () => {
     const doneLane = screen.getByRole('region', { name: 'done' });
     expect(within(doneLane).queryByText('競合調査')).not.toBeInTheDocument();
   });
+
+  it('各レーンの先頭にそのレーンの件数を表示する', () => {
+    render(
+      <Board
+        tasks={[
+          task({ id: '1', status: 'needs-ai' }),
+          task({ id: '2', status: 'needs-ai' }),
+          task({ id: '3', status: 'in-progress' }),
+        ]}
+      />,
+    );
+    const needsAi = screen.getByRole('region', { name: 'needs-ai' });
+    const inProgress = screen.getByRole('region', { name: 'in-progress' });
+    const done = screen.getByRole('region', { name: 'done' });
+    expect(within(needsAi).getByText('2')).toBeInTheDocument();
+    expect(within(inProgress).getByText('1')).toBeInTheDocument();
+    expect(within(done).getByText('0')).toBeInTheDocument();
+  });
 });

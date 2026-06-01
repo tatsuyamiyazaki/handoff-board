@@ -120,6 +120,20 @@ body {
   margin: 0;
 }
 
+.lane__count {
+  margin-left: auto;
+  margin-right: 0.5rem;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-border, oklch(90% 0 0));
+  color: var(--color-text, oklch(25% 0 0));
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 .lane__status {
   font-size: 0.7rem;
   color: var(--color-muted);

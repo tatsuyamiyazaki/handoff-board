@@ -24,6 +24,9 @@ export function Lane({ status, tasks, onTransitioned, onArchived }: LaneProps) {
     <section className="lane" aria-label={status} data-status={status}>
       <header className="lane__header">
         <h2 className="lane__title">{STATUS_LABEL[status]}</h2>
+        <span className="lane__count" aria-label={`${status} の件数`}>
+          {tasks.length}
+        </span>
         <span className="lane__status">{status}</span>
       </header>
       <ul className="lane__cards">

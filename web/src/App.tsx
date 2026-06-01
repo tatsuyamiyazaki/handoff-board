@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { Task } from '@handoff/shared';
-import { fetchBoard } from './api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Board } from './components/Board';
 import { CreateTaskDialog } from './components/CreateTaskDialog';
+import { useBoard, BOARD_QUERY_KEY } from './hooks/useBoard';
 import {
   isAuthConfigured,
   onUserChange,
@@ -10,24 +10,23 @@ import {
   signOutUser,
 } from './auth/firebase-auth';
 
-// #02 Firebase サインイン、#03 タスク作成ダイアログ。
-// 10〜15秒ポーリングは #08 で TanStack Query により追加する。
+// #02 Firebase サインイン、#03 タスク作成、#05/#06 遷移・アーカイブ、#08 ポーリング自動更新。
 export function App() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { data: tasks = [], error } = useBoard();
+  const [authError, setAuthError] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => onUserChange(setEmail), []);
 
-  useEffect(() => {
-    fetchBoard()
-      .then((loaded) => {
-        setTasks(loaded);
-        setError(null);
-      })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, [email]);
+  // サインイン状態が変わると認証ヘッダーが変わるため、ボードを再取得する。
+  const refreshBoard = (): void => {
+    void queryClient.invalidateQueries({ queryKey: BOARD_QUERY_KEY });
+  };
+  useEffect(refreshBoard, [email]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const message = authError ?? (error instanceof Error ? error.message : null);
 
   return (
     <main className="app">
@@ -53,7 +52,7 @@ export function App() {
               disabled={!isAuthConfigured()}
               onClick={() =>
                 void signInWithGoogle().catch((e: unknown) =>
-                  setError(e instanceof Error ? e.message : String(e)),
+                  setAuthError(e instanceof Error ? e.message : String(e)),
                 )
               }
             >
@@ -62,25 +61,17 @@ export function App() {
           )}
         </div>
       </header>
-      {error && (
+      {message && (
         <p role="alert" className="app__error">
-          {error}
+          {message}
         </p>
       )}
-      <Board
-        tasks={tasks}
-        onTransitioned={(updated) =>
-          setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
-        }
-        onArchived={(archived) =>
-          setTasks((prev) => prev.filter((t) => t.id !== archived.id))
-        }
-      />
+      <Board tasks={tasks} onTransitioned={refreshBoard} onArchived={refreshBoard} />
       {showCreate && (
         <CreateTaskDialog
           onClose={() => setShowCreate(false)}
-          onCreated={(task) => {
-            setTasks((prev) => [...prev, task]);
+          onCreated={() => {
+            refreshBoard();
             setShowCreate(false);
           }}
         />
