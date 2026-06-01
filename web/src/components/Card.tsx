@@ -4,6 +4,7 @@ import { BlockDialog } from './BlockDialog';
 import { UnblockDialog } from './UnblockDialog';
 import { HandoffDialog } from './HandoffDialog';
 import { EditDialog } from './EditDialog';
+import { DeleteDialog } from './DeleteDialog';
 import { Icon } from './icons';
 import {
   completeTask as defaultCompleteTask,
@@ -24,25 +25,31 @@ interface CardProps {
   onTransitioned?: (task: Task) => void;
   /** アーカイブ成功時に対象タスクを親へ通知する（Board→App でボードから除去）。 */
   onArchived?: (task: Task) => void;
+  /** 削除成功時に対象タスクを親へ通知する（Board→App でボードから除去）。 */
+  onDeleted?: (task: Task) => void;
   /** テスト用に差し替え可能な遷移関数。ダイアログと直接遷移で使う。 */
   transitionTask?: (id: string, input: TransitionInput) => Promise<Task>;
   /** テスト用に差し替え可能な完了関数。既定は api-client.completeTask。 */
   completeTask?: (id: string) => Promise<Task>;
   /** テスト用に差し替え可能な編集関数。EditDialog へそのまま渡す。 */
   editTask?: (id: string, input: EditInput) => Promise<Task>;
+  /** テスト用に差し替え可能な削除関数。DeleteDialog へそのまま渡す。 */
+  deleteTask?: (id: string) => Promise<Task>;
 }
 
-/** 開いている遷移/編集ダイアログの種別。 */
-type OpenDialog = 'block' | 'unblock' | 'handoff' | 'edit' | null;
+/** 開いている遷移/編集/削除ダイアログの種別。 */
+type OpenDialog = 'block' | 'unblock' | 'handoff' | 'edit' | 'delete' | null;
 
 /** 1タスク=1カード。レーン遷移（着手/引き継ぎ/完了/ブロック/解除）と内容編集・アーカイブを持つ。 */
 export function Card({
   task,
   onTransitioned,
   onArchived,
+  onDeleted,
   transitionTask = defaultTransitionTask,
   completeTask = defaultCompleteTask,
   editTask,
+  deleteTask,
 }: CardProps) {
   const [dialog, setDialog] = useState<OpenDialog>(null);
   const [busy, setBusy] = useState(false);
@@ -162,6 +169,9 @@ export function Card({
         <button type="button" aria-label="編集" title="編集" onClick={() => setDialog('edit')}>
           <Icon name="pencil" />
         </button>
+        <button type="button" aria-label="削除" title="削除" onClick={() => setDialog('delete')}>
+          <Icon name="trash" />
+        </button>
       </div>
 
       {dialog === 'block' && (
@@ -194,6 +204,17 @@ export function Card({
           onClose={() => setDialog(null)}
           onEdited={handleTransitioned}
           editTask={editTask}
+        />
+      )}
+      {dialog === 'delete' && (
+        <DeleteDialog
+          task={task}
+          onClose={() => setDialog(null)}
+          onDeleted={(deleted) => {
+            setDialog(null);
+            onDeleted?.(deleted);
+          }}
+          deleteTask={deleteTask}
         />
       )}
     </article>

@@ -113,4 +113,10 @@ describe('Card', () => {
     fireEvent.click(screen.getByRole('button', { name: '編集' }));
     expect(screen.getByRole('form', { name: 'タスクを編集' })).toBeInTheDocument();
   });
+
+  it('どのタスクにも「削除」があり、押すと削除確認ダイアログが開く', () => {
+    render(<Card task={task({ status: 'needs-ai' })} />);
+    fireEvent.click(screen.getByRole('button', { name: '削除' }));
+    expect(screen.getByRole('alertdialog', { name: 'タスクを削除' })).toBeInTheDocument();
+  });
 });

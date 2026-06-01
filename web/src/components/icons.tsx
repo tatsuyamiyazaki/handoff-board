@@ -14,7 +14,8 @@ export type IconName =
   | 'plus' // 新規タスク
   | 'log-in' // サインイン
   | 'log-out' // サインアウト
-  | 'x'; // キャンセル / 閉じる
+  | 'x' // キャンセル / 閉じる
+  | 'trash'; // 削除
 
 const PATHS: Record<IconName, ReactNode> = {
   play: <polygon points="7 4 20 12 7 20" />,
@@ -76,6 +77,15 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M6 6l12 12" />
       <path d="M18 6 6 18" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <path d="M6 7v13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
     </>
   ),
 };

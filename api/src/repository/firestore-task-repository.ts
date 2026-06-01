@@ -79,4 +79,13 @@ export class FirestoreTaskRepository implements TaskRepository {
     if (!doc.exists) return null;
     return { ...(doc.data() as Omit<Task, 'id'>), id: doc.id };
   }
+
+  async deleteById(id: string): Promise<Task | null> {
+    const ref = this.db.collection(BOARD_COLLECTION).doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    const task = { ...(doc.data() as Omit<Task, 'id'>), id: doc.id };
+    await ref.delete();
+    return task;
+  }
 }

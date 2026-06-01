@@ -84,7 +84,12 @@ export function App() {
         </p>
       )}
       {isSignedIn ? (
-        <Board tasks={tasks} onTransitioned={refreshBoard} onArchived={refreshBoard} />
+        <Board
+          tasks={tasks}
+          onTransitioned={refreshBoard}
+          onArchived={refreshBoard}
+          onDeleted={refreshBoard}
+        />
       ) : (
         <p className="app__signin-prompt">
           サインインすると、あなたが作成したタスクのボードが表示されます。

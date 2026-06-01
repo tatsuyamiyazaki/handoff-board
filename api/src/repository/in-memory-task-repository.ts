@@ -54,4 +54,11 @@ export class InMemoryTaskRepository implements TaskRepository {
     const found = this.archived.get(id);
     return found ? structuredClone(found) : null;
   }
+
+  async deleteById(id: string): Promise<Task | null> {
+    const found = this.tasks.get(id);
+    if (found === undefined) return null;
+    this.tasks.delete(id);
+    return structuredClone(found);
+  }
 }

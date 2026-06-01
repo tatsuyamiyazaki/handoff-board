@@ -38,4 +38,9 @@ export interface TaskRepository {
   complete(task: Task): Promise<Task>;
   /** archive コレクションの id 一致タスクを返す。無ければ null（complete の冪等判定に使う）。 */
   findArchivedById(id: string): Promise<Task | null>;
+  /**
+   * board コレクションから id のタスクを削除し、削除したタスクを返す。
+   * 対象が存在しなければ null（ルートで 404 判定に使う）。
+   */
+  deleteById(id: string): Promise<Task | null>;
 }

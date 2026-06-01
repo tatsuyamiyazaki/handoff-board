@@ -7,10 +7,12 @@ interface BoardProps {
   onTransitioned?: (task: Task) => void;
   /** アーカイブ成功時に対象タスクを親へ通知（Card→Lane→Board 経由）。 */
   onArchived?: (task: Task) => void;
+  /** 削除成功時に対象タスクを親へ通知（Card→Lane→Board 経由）。 */
+  onDeleted?: (task: Task) => void;
 }
 
 /** 5レーンのカンバン。タスクを status ごとに振り分けて表示する。 */
-export function Board({ tasks, onTransitioned, onArchived }: BoardProps) {
+export function Board({ tasks, onTransitioned, onArchived, onDeleted }: BoardProps) {
   const byStatus = (status: Status): Task[] => tasks.filter((t) => t.status === status);
   return (
     <div className="board">
@@ -21,6 +23,7 @@ export function Board({ tasks, onTransitioned, onArchived }: BoardProps) {
           tasks={byStatus(status)}
           onTransitioned={onTransitioned}
           onArchived={onArchived}
+          onDeleted={onDeleted}
         />
       ))}
     </div>

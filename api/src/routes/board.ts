@@ -120,6 +120,19 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
     return ok(saved);
   });
 
+  // カードの削除。board コレクションから完全に除去し、削除したタスクを返す。対象なしは 404。
+  app.delete('/api/board/:id', async (request, reply) => {
+    await authenticate(request.headers, deps.auth);
+    const { id } = request.params as { id: string };
+
+    const deleted = await deps.repository.deleteById(id);
+    if (deleted === null) {
+      reply.status(404);
+      return fail('task not found');
+    }
+    return ok(deleted);
+  });
+
   // #06 完了→アーカイブ。done 前提、board→archive 移動、再送に対して冪等。
   app.post('/api/board/:id/complete', async (request, reply) => {
     const { actor } = await authenticate(request.headers, deps.auth);

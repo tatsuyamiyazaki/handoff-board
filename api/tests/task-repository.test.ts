@@ -114,3 +114,20 @@ describe('InMemoryTaskRepository.complete（board → archive 移動）', () => 
     expect(await repo.findArchivedById('a')).toBeNull();
   });
 });
+
+describe('InMemoryTaskRepository.deleteById', () => {
+  it('対象を board から削除し、削除したタスクを返す', async () => {
+    const repo = new InMemoryTaskRepository([sampleTask({ id: 'a' }), sampleTask({ id: 'b' })]);
+
+    const deleted = await repo.deleteById('a');
+
+    expect(deleted?.id).toBe('a');
+    expect((await repo.findAll()).map((t) => t.id)).toEqual(['b']);
+    expect(await repo.findById('a')).toBeNull();
+  });
+
+  it('存在しない id は null を返す', async () => {
+    const repo = new InMemoryTaskRepository([]);
+    expect(await repo.deleteById('ghost')).toBeNull();
+  });
+});

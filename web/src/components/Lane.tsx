@@ -16,10 +16,12 @@ interface LaneProps {
   onTransitioned?: (task: Task) => void;
   /** アーカイブ成功時に対象タスクを親へ通知（Card→Lane→Board 経由）。 */
   onArchived?: (task: Task) => void;
+  /** 削除成功時に対象タスクを親へ通知（Card→Lane→Board 経由）。 */
+  onDeleted?: (task: Task) => void;
 }
 
 /** カンバンの縦の列。status の値と1対1（CONTEXT.md）。 */
-export function Lane({ status, tasks, onTransitioned, onArchived }: LaneProps) {
+export function Lane({ status, tasks, onTransitioned, onArchived, onDeleted }: LaneProps) {
   return (
     <section className="lane" aria-label={status} data-status={status}>
       <header className="lane__header">
@@ -32,7 +34,12 @@ export function Lane({ status, tasks, onTransitioned, onArchived }: LaneProps) {
       <ul className="lane__cards">
         {tasks.map((task) => (
           <li key={task.id}>
-            <Card task={task} onTransitioned={onTransitioned} onArchived={onArchived} />
+            <Card
+              task={task}
+              onTransitioned={onTransitioned}
+              onArchived={onArchived}
+              onDeleted={onDeleted}
+            />
           </li>
         ))}
       </ul>

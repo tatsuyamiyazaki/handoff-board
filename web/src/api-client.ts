@@ -82,6 +82,19 @@ export async function editTask(id: string, input: EditInput): Promise<Task> {
   return body.data;
 }
 
+/** DELETE /api/board/:id。カードを board から削除し、削除したタスクを返す。失敗（404等）は例外。 */
+export async function deleteTask(id: string): Promise<Task> {
+  const res = await fetch(`${API_BASE}/api/board/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: await authedHeaders(),
+  });
+  const body = (await res.json()) as ApiEnvelope<Task>;
+  if (!res.ok || !body.success || body.data === null) {
+    throw new Error(body.error ?? `タスクの削除に失敗しました (${res.status})`);
+  }
+  return body.data;
+}
+
 /** POST /api/board/:id/complete。done タスクを archive へ移し、archive のタスクを返す。冪等。失敗は例外。 */
 export async function completeTask(id: string): Promise<Task> {
   const res = await fetch(`${API_BASE}/api/board/${encodeURIComponent(id)}/complete`, {

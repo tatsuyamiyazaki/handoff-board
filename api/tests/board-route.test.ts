@@ -565,3 +565,48 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     expect(res.statusCode).toBe(401);
   });
 });
+
+describe('DELETE /api/board/:id（削除）', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    const repository = new InMemoryTaskRepository([sampleTask({ id: 't1' }), sampleTask({ id: 't2' })]);
+    app = buildApp({ repository, auth: { boardTokens } });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('削除で 200・削除タスクを返し、ボードから消える', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/board/t1',
+      headers: { 'x-board-token': 'dev-token' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.id).toBe('t1');
+
+    const after = await app.inject({
+      method: 'GET',
+      url: '/api/board',
+      headers: { 'x-board-token': 'dev-token' },
+    });
+    expect(after.json().data.map((t: Task) => t.id)).toEqual(['t2']);
+  });
+
+  it('存在しない id の削除は 404', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/board/ghost',
+      headers: { 'x-board-token': 'dev-token' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('認証ヘッダー欠落は 401', async () => {
+    const res = await app.inject({ method: 'DELETE', url: '/api/board/t1' });
+    expect(res.statusCode).toBe(401);
+  });
+});
