@@ -1,25 +1,50 @@
-/* HANDOFF — Swiss / International 寄り。status を意味づける semantic color。 */
+/*
+ * HANDOFF — Bugatti-inspired editorial monochrome system.
+ * Pure black canvas, no accent color (only the ice-blue link token),
+ * three-typeface trinity (Display / Text serif / Monospace), weight 400 only,
+ * emphasis from size + tracking + case, 0px radius everywhere except pill buttons.
+ * See docs/specs/frontend-app-design.md.
+ */
 :root {
-  --color-bg: oklch(98% 0 0);
-  --color-surface: oklch(100% 0 0);
-  --color-text: oklch(20% 0 0);
-  --color-muted: oklch(55% 0 0);
-  --color-border: oklch(90% 0 0);
+  /* Surface — total monochrome, near-black tones */
+  --canvas: #000000;
+  --surface-soft: #0d0d0d;
+  --surface-card: #141414;
+  --surface-elevated: #1f1f1f;
+  --hairline: #262626;
+  --hairline-strong: #3a3a3a;
 
-  --status-needs-ai: oklch(72% 0.15 280);
-  --status-needs-human: oklch(72% 0.15 230);
-  --status-in-progress: oklch(75% 0.15 90);
-  --status-done: oklch(72% 0.15 150);
-  --status-blocked: oklch(65% 0.2 25);
+  /* Text */
+  --on-dark: #ffffff;
+  --body: #cccccc;
+  --body-strong: #e6e6e6;
+  --muted: #999999;
+  --muted-soft: #666666;
 
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 1rem;
-  --space-4: 1.5rem;
-  --space-5: 2.5rem;
+  /* The only non-monochrome token + semantic (rare) */
+  --link: #c3d9f3;
+  --warning: #d4a017;
+  --success: #5fa657;
 
-  --radius: 4px;
-  --font-sans: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+  /* Typeface trinity (licensed Bugatti faces → open substitutes) */
+  --font-display: 'Saira Condensed', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
+  --font-text: 'EB Garamond', Garamond, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+
+  /* Spacing — base 4px */
+  --space-xxs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-xxl: 64px;
+  --space-section: 120px;
+
+  /* Radius — binary: rectangular everything, pill buttons only */
+  --rounded-none: 0px;
+  --rounded-pill: 9999px;
 }
 
 * {
@@ -34,110 +59,177 @@ body,
 }
 
 body {
-  font-family: var(--font-sans);
-  color: var(--color-text);
-  background: var(--color-bg);
+  font-family: var(--font-text);
+  color: var(--body);
+  background: var(--canvas);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
+/* ── Shell ───────────────────────────────────────────────────────────── */
 .app {
-  padding: var(--space-5);
-  max-width: 1600px;
+  padding: var(--space-xl) var(--space-xl) var(--space-section);
+  max-width: 1280px;
   margin: 0 auto;
 }
 
+/* Top nav: MENU-style minimal bar with centered wordmark, monospace labels. */
 .app__header {
-  border-bottom: 2px solid var(--color-text);
-  padding-bottom: var(--space-3);
-  margin-bottom: var(--space-4);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 56px;
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: var(--space-xxl);
+}
+
+.app__brand {
+  grid-column: 2;
+  text-align: center;
 }
 
 .app__title {
-  font-size: clamp(1.75rem, 1rem + 3vw, 3rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--on-dark);
   margin: 0;
 }
 
 .app__subtitle {
-  margin: var(--space-1) 0 0;
-  color: var(--color-muted);
-  font-size: 0.9rem;
-  letter-spacing: 0.02em;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: var(--space-xs) 0 0;
+}
+
+.app__auth {
+  grid-column: 3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-md);
+}
+
+.app__user {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: none;
+  color: var(--muted);
+}
+
+/* All chrome buttons inherit the signature transparent outline pill. */
+.app__auth button,
+.card__actions button,
+.create-dialog__actions button,
+.block-dialog__actions button,
+.unblock-dialog__actions button {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--on-dark);
+  background: transparent;
+  border: 1px solid var(--on-dark);
+  border-radius: var(--rounded-pill);
+  padding: 12px var(--space-lg);
+  min-height: 44px;
+  cursor: pointer;
+  transition:
+    color 200ms ease,
+    background 200ms ease,
+    border-color 200ms ease,
+    opacity 200ms ease;
+}
+
+.app__auth button:active,
+.card__actions button:active,
+.create-dialog__actions button:active,
+.block-dialog__actions button:active,
+.unblock-dialog__actions button:active {
+  background: var(--on-dark);
+  color: var(--canvas);
+}
+
+.app__auth button:disabled,
+.card__actions button:disabled,
+.create-dialog__actions button:disabled,
+.block-dialog__actions button:disabled,
+.unblock-dialog__actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .app__error {
-  margin: 0 0 var(--space-4);
-  padding: var(--space-2) var(--space-3);
-  border-left: 4px solid var(--status-blocked);
-  background: oklch(95% 0.04 25);
-  color: oklch(40% 0.12 25);
-  font-size: 0.875rem;
+  margin: 0 0 var(--space-xl);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 1px solid var(--warning);
+  background: var(--surface-soft);
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
 }
 
+/* ── Board / lanes ───────────────────────────────────────────────────── */
 .board {
   display: grid;
   grid-template-columns: repeat(5, minmax(220px, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-xl);
   align-items: start;
 }
 
+/* No card surface, no colored accent — lanes are columns on black,
+ * separated only by a hairline rule and uppercase monospace labels. */
 .lane {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-top: 3px solid var(--lane-accent, var(--color-border));
-  border-radius: var(--radius);
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--hairline-strong);
+  border-radius: var(--rounded-none);
   min-height: 120px;
-  padding: var(--space-3);
-}
-
-.lane[data-status='needs-ai'] {
-  --lane-accent: var(--status-needs-ai);
-}
-.lane[data-status='needs-human'] {
-  --lane-accent: var(--status-needs-human);
-}
-.lane[data-status='in-progress'] {
-  --lane-accent: var(--status-in-progress);
-}
-.lane[data-status='done'] {
-  --lane-accent: var(--status-done);
-}
-.lane[data-status='blocked'] {
-  --lane-accent: var(--status-blocked);
+  padding: var(--space-lg) 0 0;
 }
 
 .lane__header {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
 }
 
 .lane__title {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1.3;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--on-dark);
   margin: 0;
 }
 
 .lane__count {
   margin-left: auto;
-  margin-right: 0.5rem;
-  min-width: 1.5rem;
-  padding: 0.05rem 0.4rem;
-  border-radius: 999px;
-  background: var(--color-border, oklch(90% 0 0));
-  color: var(--color-text, oklch(25% 0 0));
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
-  text-align: center;
 }
 
+/* The English status key is the quiet caption beneath the title. */
 .lane__status {
-  font-size: 0.7rem;
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
+  display: none;
 }
 
 .lane__cards {
@@ -146,54 +238,60 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 1px;
+  background: var(--hairline);
 }
 
+/* ── Cards ───────────────────────────────────────────────────────────── */
 .card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  padding: var(--space-3);
-  background: var(--color-bg);
-  transition:
-    transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 150ms ease;
+  background: var(--surface-card);
+  border: 0;
+  border-radius: var(--rounded-none);
+  padding: var(--space-lg);
+  transition: background 200ms ease;
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px oklch(0% 0 0 / 0.08);
+  background: var(--surface-elevated);
 }
 
 .card__title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin: 0 0 var(--space-2);
-  line-height: 1.35;
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--body-strong);
+  margin: 0 0 var(--space-md);
 }
 
 .card__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-md) var(--space-lg);
   margin: 0;
 }
 
 .card__meta div {
   display: flex;
   flex-direction: column;
+  gap: var(--space-xxs);
 }
 
 .card__meta dt {
-  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-muted);
+  letter-spacing: 2px;
+  color: var(--muted);
 }
 
 .card__meta dd {
   margin: 0;
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--on-dark);
 }
 
 .card__priority {
@@ -204,161 +302,203 @@ body {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
-  margin: var(--space-2) 0 0;
+  gap: var(--space-md);
+  margin: var(--space-md) 0 0;
   padding: 0;
 }
 
+/* Tags are the type itself — no fill, no border. */
 .card__tag {
-  font-size: 0.65rem;
-  padding: 0 var(--space-1);
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
-  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
-/* #02: ヘッダーの認証 UI。タイトル左・サインイン右の2分割。 */
-.app__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.app__auth {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.app__user {
-  font-size: var(--text-sm, 0.875rem);
-  color: var(--color-text-muted, oklch(55% 0 0));
-}
-.app__auth button {
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--color-border, oklch(85% 0 0));
-  border-radius: 0.5rem;
-  background: var(--color-surface, oklch(99% 0 0));
-  font: inherit;
-  cursor: pointer;
-  transition: background var(--duration-fast, 150ms) ease;
-}
-.app__auth button:hover:not(:disabled) {
-  background: var(--color-surface-hover, oklch(95% 0 0));
-}
-.app__auth button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.card__tag::before {
+  content: '/ ';
+  color: var(--muted-soft);
 }
 
-/* #03: タスク作成ダイアログ。背景オーバーレイ + 中央カード。 */
+.card__blocked-reason {
+  margin: var(--space-md) 0 0;
+  font-family: var(--font-text);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--warning);
+}
+
+.card__actions {
+  display: flex;
+  gap: var(--space-xs);
+  margin-top: var(--space-lg);
+}
+
+/* Card-level actions sit a notch smaller than the primary CTA. */
+.card__actions button {
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding: 10px var(--space-md);
+  min-height: 40px;
+}
+
+/* ── Dialogs ─────────────────────────────────────────────────────────── */
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: oklch(20% 0 0 / 0.45);
+  background: rgba(0, 0, 0, 0.82);
   display: grid;
   place-items: center;
-  padding: 1rem;
+  padding: var(--space-md);
   z-index: 10;
 }
+
 .create-dialog,
 .block-dialog,
 .unblock-dialog {
-  background: var(--color-surface, oklch(99% 0 0));
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  width: min(28rem, 100%);
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
+  border-radius: var(--rounded-none);
+  padding: var(--space-xl);
+  width: min(30rem, 100%);
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  box-shadow: 0 12px 40px oklch(20% 0 0 / 0.25);
+  gap: var(--space-md);
 }
+
 .create-dialog__title,
 .block-dialog__title,
 .unblock-dialog__title {
-  margin: 0;
-  font-size: 1.25rem;
+  margin: 0 0 var(--space-xs);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--on-dark);
 }
+
 .create-dialog__error,
 .block-dialog__error,
 .unblock-dialog__error {
   margin: 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
-  background: oklch(94% 0.05 25);
-  color: oklch(45% 0.16 25);
-  font-size: 0.875rem;
+  padding: var(--space-sm) var(--space-md);
+  border-left: 1px solid var(--warning);
+  background: var(--surface-soft);
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
 }
+
 .unblock-dialog__reason {
   margin: 0;
-  font-size: 0.875rem;
-  color: var(--color-muted, oklch(50% 0 0));
+  font-family: var(--font-text);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--body);
 }
-.card__blocked-reason {
-  margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-  color: oklch(45% 0.16 25);
-}
-.card__actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.65rem;
-}
-.card__actions button {
-  padding: 0.3rem 0.7rem;
-  border: 1px solid var(--color-border, oklch(85% 0 0));
-  border-radius: 0.5rem;
-  background: var(--color-surface, oklch(99% 0 0));
-  font: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
+
+/* Underline-only fields on transparent canvas. */
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.875rem;
+  gap: var(--space-xs);
 }
+
+.field > label,
+.field:first-child {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .field input,
 .field select,
 .field textarea {
-  padding: 0.5rem;
-  border: 1px solid var(--color-border, oklch(85% 0 0));
-  border-radius: 0.5rem;
-  font: inherit;
+  font-family: var(--font-text);
+  font-size: 16px;
+  color: var(--on-dark);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--hairline-strong);
+  border-radius: var(--rounded-none);
+  padding: var(--space-sm) 0;
+  min-height: 44px;
 }
+
+.field select option {
+  background: var(--surface-elevated);
+  color: var(--on-dark);
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--muted);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-bottom-color: var(--on-dark);
+}
+
 .field textarea {
-  min-height: 4rem;
+  min-height: 5rem;
   resize: vertical;
+  line-height: 1.5;
 }
+
 .create-dialog__actions,
 .block-dialog__actions,
 .unblock-dialog__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
 }
-.create-dialog__actions button,
-.block-dialog__actions button,
-.unblock-dialog__actions button {
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--color-border, oklch(85% 0 0));
-  border-radius: 0.5rem;
-  background: var(--color-surface, oklch(99% 0 0));
-  font: inherit;
-  cursor: pointer;
-}
+
+/* Submit reads as the filled inverse of the transparent pill — the one
+ * place a solid surface earns its weight, signalling commitment. */
 .create-dialog__actions button[type='submit'],
 .block-dialog__actions button[type='submit'],
 .unblock-dialog__actions button[type='submit'] {
-  background: var(--color-accent, oklch(55% 0.18 250));
-  color: white;
-  border-color: transparent;
+  background: var(--on-dark);
+  color: var(--canvas);
 }
-.create-dialog__actions button:disabled,
-.block-dialog__actions button:disabled,
-.unblock-dialog__actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+
+/* ── Inline links — the system's only chromatic token ────────────────── */
+a {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .board {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .app {
+    padding: var(--space-md) var(--space-md) var(--space-xxl);
+  }
+  .app__header {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .app__brand,
+  .app__auth {
+    grid-column: 1;
+    justify-content: center;
+  }
+  .board {
+    grid-template-columns: 1fr;
+  }
 }

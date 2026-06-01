@@ -31,7 +31,7 @@ export function App() {
   return (
     <main className="app">
       <header className="app__header">
-        <div>
+        <div className="app__brand">
           <h1 className="app__title">HANDOFF</h1>
           <p className="app__subtitle">人間とAIの共同タスクボード</p>
         </div>
