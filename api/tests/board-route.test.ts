@@ -230,6 +230,13 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
         owner: 'ai-batch',
         updated_at: '2026-06-01T00:00:00Z',
       }),
+      sampleTask({
+        id: 'blk',
+        status: 'blocked',
+        owner: 'human',
+        blocked_reason: 'API キー待ち',
+        updated_at: '2026-06-01T00:00:00Z',
+      }),
     ]);
     app = buildApp({
       repository,
@@ -291,6 +298,59 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
     });
     expect(res.statusCode).toBe(409);
     expect(res.json().success).toBe(false);
+  });
+
+  it('ブロック（in-progress→blocked）で 200・blocked_reason をセット・activity 記録', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { to: 'blocked', blocked_reason: '依存ライブラリ待ち', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(200);
+    const task = res.json().data;
+    expect(task.status).toBe('blocked');
+    expect(task.blocked_reason).toBe('依存ライブラリ待ち');
+    expect(task.activity.at(-1)).toMatchObject({ action: 'in-progress → blocked' });
+  });
+
+  it('→blocked で blocked_reason 欠落は 422', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { to: 'blocked', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().success).toBe(false);
+  });
+
+  it('解除（blocked→needs-human）で 200・blocked_reason を null にリセット', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/blk',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: {
+        to: 'needs-human',
+        handoff_note: 'キー入手、確認お願いします',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const task = res.json().data;
+    expect(task.status).toBe('needs-human');
+    expect(task.blocked_reason).toBeNull();
+    expect(task.handoff_note).toBe('キー入手、確認お願いします');
+  });
+
+  it('解除（blocked→needs-ai）で handoff_note 欠落は 422', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/blk',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { to: 'needs-ai', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(422);
   });
 
   it('存在しない id は 404', async () => {

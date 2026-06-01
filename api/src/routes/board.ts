@@ -24,6 +24,7 @@ export interface BoardRouteDeps {
 interface TransitionRequest {
   to: Status;
   handoff_note?: string;
+  blocked_reason?: string;
   updated_at: string;
 }
 
@@ -42,8 +43,10 @@ function parseTransitionRequest(input: unknown): TransitionRequest {
   }
   const handoff_note =
     body.handoff_note === undefined ? undefined : String(body.handoff_note);
+  const blocked_reason =
+    body.blocked_reason === undefined ? undefined : String(body.blocked_reason);
 
-  return { to: body.to as Status, handoff_note, updated_at: body.updated_at };
+  return { to: body.to as Status, handoff_note, blocked_reason, updated_at: body.updated_at };
 }
 
 /** 処理中ボードのルート。#01 GET、#03 POST（作成）、#04 PATCH（status 遷移）。 */
@@ -79,7 +82,7 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
 
     const next = applyTransition(
       current,
-      { to: req.to, handoff_note: req.handoff_note },
+      { to: req.to, handoff_note: req.handoff_note, blocked_reason: req.blocked_reason },
       { now, actor },
     );
     const saved = await deps.repository.update(next, req.updated_at);

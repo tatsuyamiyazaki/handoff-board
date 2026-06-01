@@ -67,7 +67,12 @@ export function App() {
           {error}
         </p>
       )}
-      <Board tasks={tasks} />
+      <Board
+        tasks={tasks}
+        onTransitioned={(updated) =>
+          setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+        }
+      />
       {showCreate && (
         <CreateTaskDialog
           onClose={() => setShowCreate(false)}

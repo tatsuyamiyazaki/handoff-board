@@ -34,3 +34,25 @@ export async function createTask(input: unknown): Promise<Task> {
   }
   return body.data;
 }
+
+/** 遷移リクエスト本文。updated_at は楽観ロック照合に必須（ADR-0002）。 */
+export interface TransitionInput {
+  to: Task['status'];
+  handoff_note?: string;
+  blocked_reason?: string;
+  updated_at: string;
+}
+
+/** PATCH /api/board/:id。status 遷移を行い更新後の Task を返す。失敗（422/404/409）は例外。 */
+export async function transitionTask(id: string, input: TransitionInput): Promise<Task> {
+  const res = await fetch(`${API_BASE}/api/board/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: await authedHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input),
+  });
+  const body = (await res.json()) as ApiEnvelope<Task>;
+  if (!res.ok || !body.success || body.data === null) {
+    throw new Error(body.error ?? `タスクの更新に失敗しました (${res.status})`);
+  }
+  return body.data;
+}

@@ -131,16 +131,103 @@ describe('applyTransition: グラフ網羅（#04 スコープ＝ blocked を除�
   });
 });
 
-describe('allowedTransitions: UI がボタンを描画するための許可先一覧', () => {
-  it('in-progress からは needs-ai / needs-human / done', () => {
-    expect(allowedTransitions('in-progress')).toEqual(['needs-ai', 'needs-human', 'done']);
+describe('applyTransition: ブロック（→ blocked）は blocked_reason 必須', () => {
+  it('in-progress → blocked で blocked_reason を反映し activity に記録する', () => {
+    const task = baseTask({ status: 'in-progress' });
+
+    const next = applyTransition(task, { to: 'blocked', blocked_reason: 'API キー待ち' }, deps);
+
+    expect(next.status).toBe('blocked');
+    expect(next.blocked_reason).toBe('API キー待ち');
+    expect(next.updated_at).toBe('2026-06-01T09:00:00.000Z');
+    expect(next.activity.at(-1)).toMatchObject({
+      actor: 'alice@example.com',
+      action: 'in-progress → blocked',
+    });
   });
 
-  it('needs-ai からは in-progress のみ', () => {
-    expect(allowedTransitions('needs-ai')).toEqual(['in-progress']);
+  it('needs-ai → blocked は許可される', () => {
+    const next = applyTransition(
+      baseTask({ status: 'needs-ai' }),
+      { to: 'blocked', blocked_reason: '依存待ち' },
+      deps,
+    );
+    expect(next.status).toBe('blocked');
+  });
+
+  it('→ blocked で blocked_reason 欠落は ValidationError(422)', () => {
+    const task = baseTask({ status: 'in-progress' });
+
+    expect(() => applyTransition(task, { to: 'blocked' }, deps)).toThrowError(ValidationError);
+    try {
+      applyTransition(task, { to: 'blocked' }, deps);
+    } catch (e) {
+      expect((e as ValidationError).status).toBe(422);
+    }
+  });
+
+  it('→ blocked で空白のみの blocked_reason も 422', () => {
+    expect(() =>
+      applyTransition(baseTask({ status: 'in-progress' }), { to: 'blocked', blocked_reason: '  ' }, deps),
+    ).toThrowError(ValidationError);
+  });
+});
+
+describe('applyTransition: 解除（blocked → needs-*）は handoff_note 必須・blocked_reason リセット', () => {
+  it('blocked → needs-human で blocked_reason を null にリセットし handoff_note を反映する', () => {
+    const task = baseTask({ status: 'blocked', blocked_reason: 'API キー待ち' });
+
+    const next = applyTransition(
+      task,
+      { to: 'needs-human', handoff_note: 'キー入手したので確認お願いします' },
+      deps,
+    );
+
+    expect(next.status).toBe('needs-human');
+    expect(next.blocked_reason).toBeNull();
+    expect(next.handoff_note).toBe('キー入手したので確認お願いします');
+    expect(next.activity.at(-1)).toMatchObject({ action: 'blocked → needs-human' });
+  });
+
+  it('blocked → needs-ai で handoff_note 欠落は ValidationError(422)', () => {
+    const task = baseTask({ status: 'blocked', blocked_reason: '依存待ち' });
+
+    expect(() => applyTransition(task, { to: 'needs-ai' }, deps)).toThrowError(ValidationError);
+  });
+
+  it('blocked → in-progress / done は禁止（422）', () => {
+    expect(() =>
+      applyTransition(baseTask({ status: 'blocked', blocked_reason: 'x' }), { to: 'in-progress' }, deps),
+    ).toThrowError(ValidationError);
+    expect(() =>
+      applyTransition(baseTask({ status: 'blocked', blocked_reason: 'x' }), { to: 'done' }, deps),
+    ).toThrowError(ValidationError);
+  });
+});
+
+describe('allowedTransitions: UI がボタンを描画するための許可先一覧', () => {
+  it('in-progress からは needs-ai / needs-human / done / blocked', () => {
+    expect(allowedTransitions('in-progress')).toEqual([
+      'needs-ai',
+      'needs-human',
+      'done',
+      'blocked',
+    ]);
+  });
+
+  it('needs-ai からは in-progress / blocked', () => {
+    expect(allowedTransitions('needs-ai')).toEqual(['in-progress', 'blocked']);
   });
 
   it('done は終端で空配列', () => {
     expect(allowedTransitions('done')).toEqual([]);
+  });
+
+  it('in-progress からは blocked も含む', () => {
+    expect(allowedTransitions('in-progress')).toContain('blocked');
+  });
+
+  it('blocked からは needs-ai / needs-human のみ', () => {
+    expect(allowedTransitions('blocked')).toEqual(['needs-ai', 'needs-human']);
   });
 });

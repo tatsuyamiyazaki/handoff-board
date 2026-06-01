@@ -9,8 +9,15 @@ const STATUS_LABEL: Record<Status, string> = {
   blocked: 'ブロック',
 };
 
+interface LaneProps {
+  status: Status;
+  tasks: Task[];
+  /** 遷移成功時に更新後タスクを親へ通知（Card→Lane→Board 経由）。 */
+  onTransitioned?: (task: Task) => void;
+}
+
 /** カンバンの縦の列。status の値と1対1（CONTEXT.md）。 */
-export function Lane({ status, tasks }: { status: Status; tasks: Task[] }) {
+export function Lane({ status, tasks, onTransitioned }: LaneProps) {
   return (
     <section className="lane" aria-label={status} data-status={status}>
       <header className="lane__header">
@@ -20,7 +27,7 @@ export function Lane({ status, tasks }: { status: Status; tasks: Task[] }) {
       <ul className="lane__cards">
         {tasks.map((task) => (
           <li key={task.id}>
-            <Card task={task} />
+            <Card task={task} onTransitioned={onTransitioned} />
           </li>
         ))}
       </ul>
