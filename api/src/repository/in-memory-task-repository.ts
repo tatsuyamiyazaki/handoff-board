@@ -15,4 +15,10 @@ export class InMemoryTaskRepository implements TaskRepository {
   async findAll(): Promise<Task[]> {
     return [...this.tasks.values()].map((t) => structuredClone(t));
   }
+
+  async create(task: Task): Promise<Task> {
+    const stored = structuredClone(task);
+    this.tasks.set(stored.id, stored);
+    return structuredClone(stored);
+  }
 }

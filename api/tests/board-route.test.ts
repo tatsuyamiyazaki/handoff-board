@@ -135,3 +135,80 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
     expect(res.statusCode).toBe(200);
   });
 });
+
+describe('POST /api/board（作成）', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    const repository = new InMemoryTaskRepository([]);
+    app = buildApp({
+      repository,
+      auth: { boardTokens },
+      ids: () => 'fixed-id',
+      clock: () => '2026-06-01T00:00:00.000Z',
+    });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('有効入力で 201・作成タスク（id/timestamps/activity created）を返す', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: {
+        title: '記事を書く',
+        owner: 'ai-batch',
+        handoff_note: '下書きお願いします',
+        status: 'needs-ai',
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const task = res.json().data;
+    expect(task.id).toBe('fixed-id');
+    expect(task.title).toBe('記事を書く');
+    expect(task.status).toBe('needs-ai');
+    expect(task.created_at).toBe('2026-06-01T00:00:00.000Z');
+    expect(task.updated_at).toBe('2026-06-01T00:00:00.000Z');
+    expect(task.activity).toHaveLength(1);
+    expect(task.activity[0]).toMatchObject({ actor: 'ai-batch', action: 'created' });
+  });
+
+  it('必須項目欠落は 422・success=false', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { owner: 'ai-batch', handoff_note: 'メモ', status: 'needs-ai' },
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().success).toBe(false);
+  });
+
+  it('初期 status が in-progress は 422', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { title: 'x', owner: 'ai-batch', handoff_note: 'メモ', status: 'in-progress' },
+    });
+    expect(res.statusCode).toBe(422);
+  });
+
+  it('priority/action_type/tags 省略時は既定値で作成される', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { title: 'x', owner: 'human', handoff_note: 'メモ', status: 'needs-human' },
+    });
+    expect(res.statusCode).toBe(201);
+    const task = res.json().data;
+    expect(task.priority).toBe('P2');
+    expect(task.action_type).toBe('other');
+    expect(task.tags).toEqual([]);
+  });
+});

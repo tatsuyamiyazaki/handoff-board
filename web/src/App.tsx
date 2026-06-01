@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Task } from '@handoff/shared';
 import { fetchBoard } from './api-client';
 import { Board } from './components/Board';
+import { CreateTaskDialog } from './components/CreateTaskDialog';
 import {
   isAuthConfigured,
   onUserChange,
@@ -9,17 +10,16 @@ import {
   signOutUser,
 } from './auth/firebase-auth';
 
-// #02: Firebase Google サインインを追加。ログイン状態が変わるたびにボードを再取得する。
+// #02 Firebase サインイン、#03 タスク作成ダイアログ。
 // 10〜15秒ポーリングは #08 で TanStack Query により追加する。
 export function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
-  // ログイン状態を購読（未構成なら即 null 通知）。
   useEffect(() => onUserChange(setEmail), []);
 
-  // 初回 + ログイン状態変化時にボードを取得。
   useEffect(() => {
     fetchBoard()
       .then((loaded) => {
@@ -37,6 +37,9 @@ export function App() {
           <p className="app__subtitle">人間とAIの共同タスクボード</p>
         </div>
         <div className="app__auth">
+          <button type="button" onClick={() => setShowCreate(true)}>
+            新規タスク
+          </button>
           {email ? (
             <>
               <span className="app__user">{email}</span>
@@ -48,9 +51,11 @@ export function App() {
             <button
               type="button"
               disabled={!isAuthConfigured()}
-              onClick={() => void signInWithGoogle().catch((e: unknown) =>
-                setError(e instanceof Error ? e.message : String(e)),
-              )}
+              onClick={() =>
+                void signInWithGoogle().catch((e: unknown) =>
+                  setError(e instanceof Error ? e.message : String(e)),
+                )
+              }
             >
               Google でサインイン
             </button>
@@ -63,6 +68,15 @@ export function App() {
         </p>
       )}
       <Board tasks={tasks} />
+      {showCreate && (
+        <CreateTaskDialog
+          onClose={() => setShowCreate(false)}
+          onCreated={(task) => {
+            setTasks((prev) => [...prev, task]);
+            setShowCreate(false);
+          }}
+        />
+      )}
     </main>
   );
 }

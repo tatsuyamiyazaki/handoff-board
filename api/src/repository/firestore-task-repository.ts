@@ -7,7 +7,7 @@ const BOARD_COLLECTION = 'board';
 
 /**
  * 本番 / エミュレータ向けの Firestore 実装。
- * #01 では findAll のみ配線。emulator 前提の自動テストは Java/firebase CLI 導入まで skip。
+ * findAll/create を配線。emulator 前提の自動テストは Java/firebase CLI 導入まで skip。
  */
 export class FirestoreTaskRepository implements TaskRepository {
   constructor(private readonly db: Firestore) {}
@@ -18,5 +18,11 @@ export class FirestoreTaskRepository implements TaskRepository {
       ...(doc.data() as Omit<Task, 'id'>),
       id: doc.id,
     }));
+  }
+
+  async create(task: Task): Promise<Task> {
+    const { id, ...data } = task;
+    await this.db.collection(BOARD_COLLECTION).doc(id).set(data);
+    return task;
   }
 }

@@ -1,0 +1,119 @@
+import { useState, type FormEvent } from 'react';
+import {
+  OWNERS,
+  INITIAL_STATUSES,
+  validateCreateTask,
+  type Task,
+  type Owner,
+  type InitialStatus,
+} from '@handoff/shared';
+import { createTask as defaultCreateTask } from '../api-client';
+
+const STATUS_LABEL: Record<InitialStatus, string> = {
+  'needs-ai': 'AI待ち',
+  'needs-human': '人間待ち',
+};
+
+interface CreateTaskDialogProps {
+  onClose: () => void;
+  onCreated: (task: Task) => void;
+  /** テスト用に差し替え可能な作成関数。既定は api-client.createTask。 */
+  createTask?: (input: unknown) => Promise<Task>;
+}
+
+/** タスク作成ダイアログ。送信前に shared の validateCreateTask でクライアント検証する。 */
+export function CreateTaskDialog({
+  onClose,
+  onCreated,
+  createTask = defaultCreateTask,
+}: CreateTaskDialogProps) {
+  const [title, setTitle] = useState('');
+  const [owner, setOwner] = useState<Owner>('ai-batch');
+  const [handoffNote, setHandoffNote] = useState('');
+  const [status, setStatus] = useState<InitialStatus>('needs-ai');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    const input = { title, owner, handoff_note: handoffNote, status };
+
+    try {
+      validateCreateTask(input); // クライアント側の早期検証（サーバーと同一ルール）。
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const task = await createTask(input);
+      onCreated(task);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
+      <form
+        className="create-dialog"
+        aria-label="タスクを作成"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+      >
+        <h2 className="create-dialog__title">タスクを作成</h2>
+
+        {error && (
+          <p role="alert" className="create-dialog__error">
+            {error}
+          </p>
+        )}
+
+        <label className="field">
+          <span>タイトル</span>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </label>
+
+        <label className="field">
+          <span>担当</span>
+          <select value={owner} onChange={(e) => setOwner(e.target.value as Owner)}>
+            {OWNERS.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          <span>初期ステータス</span>
+          <select value={status} onChange={(e) => setStatus(e.target.value as InitialStatus)}>
+            {INITIAL_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          <span>引き継ぎメモ</span>
+          <textarea value={handoffNote} onChange={(e) => setHandoffNote(e.target.value)} />
+        </label>
+
+        <div className="create-dialog__actions">
+          <button type="button" onClick={onClose}>
+            キャンセル
+          </button>
+          <button type="submit" disabled={submitting}>
+            作成
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
