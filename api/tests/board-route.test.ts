@@ -199,6 +199,44 @@ describe('POST /api/board（作成）', () => {
     expect(res.json().success).toBe(false);
   });
 
+  it('agent/project/milestone を受理して作成タスクに反映する（ADR-0004）', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: {
+        title: '記事を書く',
+        owner: 'ai-batch',
+        handoff_note: '下書きお願いします',
+        status: 'needs-ai',
+        agent: 'codex',
+        project: 'ニュースレター',
+        milestone: '6月号',
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const task = res.json().data;
+    expect(task.agent).toBe('codex');
+    expect(task.project).toBe('ニュースレター');
+    expect(task.milestone).toBe('6月号');
+  });
+
+  it('owner=human で agent 指定は 422', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: {
+        title: 'x',
+        owner: 'human',
+        handoff_note: 'メモ',
+        status: 'needs-human',
+        agent: 'codex',
+      },
+    });
+    expect(res.statusCode).toBe(422);
+  });
+
   it('初期 status が in-progress は 422', async () => {
     const res = await app.inject({
       method: 'POST',
@@ -516,6 +554,20 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     expect(t.status).toBe('in-progress'); // 遷移はしない
     expect(t.updated_at).toBe('2026-06-01T10:00:00.000Z');
     expect(t.activity.at(-1).action).toBe('edited');
+  });
+
+  it('編集で agent/project/milestone を更新する（owner=AI 時）', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { ...edit, owner: 'ai-batch', agent: 'gemini', project: 'API刷新', milestone: 'v2' },
+    });
+    expect(res.statusCode).toBe(200);
+    const t = res.json().data;
+    expect(t.agent).toBe('gemini');
+    expect(t.project).toBe('API刷新');
+    expect(t.milestone).toBe('v2');
   });
 
   it('不正な入力（title 空）は 422', async () => {
