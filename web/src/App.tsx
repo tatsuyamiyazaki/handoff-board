@@ -72,6 +72,9 @@ export function App() {
         onTransitioned={(updated) =>
           setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
         }
+        onArchived={(archived) =>
+          setTasks((prev) => prev.filter((t) => t.id !== archived.id))
+        }
       />
       {showCreate && (
         <CreateTaskDialog

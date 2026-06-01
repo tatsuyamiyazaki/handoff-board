@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { allowedTransitions, type Task } from '@handoff/shared';
 import { BlockDialog } from './BlockDialog';
 import { UnblockDialog } from './UnblockDialog';
-import type { TransitionInput } from '../api-client';
+import { completeTask as defaultCompleteTask, type TransitionInput } from '../api-client';
 
 const OWNER_LABEL: Record<Task['owner'], string> = {
   human: '人間',
@@ -14,23 +14,45 @@ interface CardProps {
   task: Task;
   /** 遷移成功時に更新後タスクを親へ通知する（Board→App でレーン移動に反映）。 */
   onTransitioned?: (task: Task) => void;
+  /** アーカイブ成功時に対象タスクを親へ通知する（Board→App でボードから除去）。 */
+  onArchived?: (task: Task) => void;
   /** テスト用に差し替え可能な遷移関数。ダイアログへそのまま渡す。 */
   transitionTask?: (id: string, input: TransitionInput) => Promise<Task>;
+  /** テスト用に差し替え可能な完了関数。既定は api-client.completeTask。 */
+  completeTask?: (id: string) => Promise<Task>;
 }
 
 /** 開いている遷移ダイアログの種別。 */
 type OpenDialog = 'block' | 'unblock' | null;
 
-/** 1タスク=1カード。メタ表示に加え、#05 でブロック理由表示とブロック/解除操作を持つ。 */
-export function Card({ task, onTransitioned, transitionTask }: CardProps) {
+/** 1タスク=1カード。#05 ブロック/解除、#06 done のアーカイブ操作を持つ。 */
+export function Card({
+  task,
+  onTransitioned,
+  onArchived,
+  transitionTask,
+  completeTask = defaultCompleteTask,
+}: CardProps) {
   const [dialog, setDialog] = useState<OpenDialog>(null);
+  const [archiving, setArchiving] = useState(false);
 
   const canBlock = allowedTransitions(task.status).includes('blocked');
   const isBlocked = task.status === 'blocked';
+  const isDone = task.status === 'done';
 
   function handleTransitioned(updated: Task): void {
     setDialog(null);
     onTransitioned?.(updated);
+  }
+
+  async function handleArchive(): Promise<void> {
+    setArchiving(true);
+    try {
+      const archived = await completeTask(task.id);
+      onArchived?.(archived);
+    } finally {
+      setArchiving(false);
+    }
   }
 
   return (
@@ -71,6 +93,11 @@ export function Card({ task, onTransitioned, transitionTask }: CardProps) {
         {isBlocked && (
           <button type="button" onClick={() => setDialog('unblock')}>
             解除
+          </button>
+        )}
+        {isDone && (
+          <button type="button" disabled={archiving} onClick={() => void handleArchive()}>
+            アーカイブ
           </button>
         )}
       </div>

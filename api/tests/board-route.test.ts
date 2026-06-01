@@ -383,3 +383,80 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
     expect(res.statusCode).toBe(401);
   });
 });
+
+describe('POST /api/board/:id/complete（完了→アーカイブ）', () => {
+  let app: FastifyInstance;
+  let repository: InMemoryTaskRepository;
+
+  beforeEach(async () => {
+    repository = new InMemoryTaskRepository([
+      sampleTask({ id: 'fin', status: 'done', owner: 'ai-batch' }),
+      sampleTask({ id: 'wip', status: 'in-progress', owner: 'human' }),
+    ]);
+    app = buildApp({
+      repository,
+      auth: { boardTokens },
+      clock: () => '2026-06-01T10:00:00.000Z',
+    });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('done タスクの complete で 200・board から消え archive に現れ・activity に archived 記録', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board/fin/complete',
+      headers: { 'x-board-token': 'dev-token' },
+    });
+    expect(res.statusCode).toBe(200);
+    const task = res.json().data;
+    expect(task.id).toBe('fin');
+    expect(task.activity.at(-1)).toMatchObject({ actor: 'ai-batch', action: 'archived' });
+    expect((await repository.findAll()).map((t) => t.id)).not.toContain('fin');
+    expect((await repository.findArchivedById('fin'))?.id).toBe('fin');
+  });
+
+  it('done 以外（in-progress）の complete は 422', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board/wip/complete',
+      headers: { 'x-board-token': 'dev-token' },
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().success).toBe(false);
+  });
+
+  it('complete の再送は冪等（2回目も 200・同タスクを返す）', async () => {
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/board/fin/complete',
+      headers: { 'x-board-token': 'dev-token' },
+    });
+    expect(first.statusCode).toBe(200);
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/board/fin/complete',
+      headers: { 'x-board-token': 'dev-token' },
+    });
+    expect(second.statusCode).toBe(200);
+    expect(second.json().data.id).toBe('fin');
+  });
+
+  it('存在しない id の complete は 404', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board/ghost/complete',
+      headers: { 'x-board-token': 'dev-token' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('認証ヘッダー欠落は 401', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/board/fin/complete' });
+    expect(res.statusCode).toBe(401);
+  });
+});

@@ -4,6 +4,7 @@ import { ConflictError, type TaskRepository } from './task-repository.js';
 
 /** 処理中タスクの Firestore コレクション名。archive は完了タスク用（#06）。 */
 const BOARD_COLLECTION = 'board';
+const ARCHIVE_COLLECTION = 'archive';
 
 /**
  * 本番 / エミュレータ向けの Firestore 実装。
@@ -50,5 +51,26 @@ export class FirestoreTaskRepository implements TaskRepository {
       tx.set(ref, data);
     });
     return task;
+  }
+
+  /**
+   * board → archive へドキュメントを移動する（#06）。トランザクションで board を削除し
+   * archive に同 id で書き込む。再送（既に archive 済み）でも壊れない（冪等）。
+   */
+  async complete(task: Task): Promise<Task> {
+    const { id, ...data } = task;
+    const boardRef = this.db.collection(BOARD_COLLECTION).doc(id);
+    const archiveRef = this.db.collection(ARCHIVE_COLLECTION).doc(id);
+    await this.db.runTransaction(async (tx) => {
+      tx.set(archiveRef, data);
+      tx.delete(boardRef);
+    });
+    return task;
+  }
+
+  async findArchivedById(id: string): Promise<Task | null> {
+    const doc = await this.db.collection(ARCHIVE_COLLECTION).doc(id).get();
+    if (!doc.exists) return null;
+    return { ...(doc.data() as Omit<Task, 'id'>), id: doc.id };
   }
 }

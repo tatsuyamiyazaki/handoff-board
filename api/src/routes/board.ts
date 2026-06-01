@@ -88,4 +88,34 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
     const saved = await deps.repository.update(next, req.updated_at);
     return ok(saved);
   });
+
+  // #06 完了→アーカイブ。done 前提、board→archive 移動、再送に対して冪等。
+  app.post('/api/board/:id/complete', async (request, reply) => {
+    const { actor } = await authenticate(request.headers, deps.auth);
+    const { id } = request.params as { id: string };
+
+    const current = await deps.repository.findById(id);
+    if (current === null) {
+      // 既に archive 済みなら冪等に 200。どちらにも無ければ 404。
+      const alreadyArchived = await deps.repository.findArchivedById(id);
+      if (alreadyArchived !== null) {
+        return ok(alreadyArchived);
+      }
+      reply.status(404);
+      return fail('task not found');
+    }
+
+    if (current.status !== 'done') {
+      throw new ValidationError('完了できるのは done のタスクのみです');
+    }
+
+    const timestamp = now();
+    const archivedTask = {
+      ...current,
+      updated_at: timestamp,
+      activity: [...current.activity, { timestamp, actor, action: 'archived' }],
+    };
+    const saved = await deps.repository.complete(archivedTask);
+    return ok(saved);
+  });
 }

@@ -7,9 +7,11 @@ import { ConflictError, type TaskRepository } from './task-repository.js';
  */
 export class InMemoryTaskRepository implements TaskRepository {
   private readonly tasks: Map<string, Task>;
+  private readonly archived: Map<string, Task>;
 
-  constructor(initial: Task[] = []) {
+  constructor(initial: Task[] = [], archivedInitial: Task[] = []) {
     this.tasks = new Map(initial.map((t) => [t.id, structuredClone(t)]));
+    this.archived = new Map(archivedInitial.map((t) => [t.id, structuredClone(t)]));
   }
 
   async findAll(): Promise<Task[]> {
@@ -35,5 +37,17 @@ export class InMemoryTaskRepository implements TaskRepository {
     const stored = structuredClone(task);
     this.tasks.set(stored.id, stored);
     return structuredClone(stored);
+  }
+
+  async complete(task: Task): Promise<Task> {
+    const stored = structuredClone(task);
+    this.tasks.delete(stored.id);
+    this.archived.set(stored.id, stored);
+    return structuredClone(stored);
+  }
+
+  async findArchivedById(id: string): Promise<Task | null> {
+    const found = this.archived.get(id);
+    return found ? structuredClone(found) : null;
   }
 }

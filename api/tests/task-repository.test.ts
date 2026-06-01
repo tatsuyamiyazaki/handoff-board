@@ -85,3 +85,21 @@ describe('InMemoryTaskRepository.update（楽観的並行制御）', () => {
     ).rejects.toBeInstanceOf(ConflictError);
   });
 });
+
+describe('InMemoryTaskRepository.complete（board → archive 移動）', () => {
+  it('complete でタスクが board から消え、archive に現れる', async () => {
+    const repo = new InMemoryTaskRepository([sampleTask({ id: 'a', status: 'done' })]);
+
+    const archived = await repo.complete(sampleTask({ id: 'a', status: 'done' }));
+
+    expect(archived.id).toBe('a');
+    expect((await repo.findAll()).map((t) => t.id)).not.toContain('a');
+    expect(await repo.findById('a')).toBeNull();
+    expect((await repo.findArchivedById('a'))?.id).toBe('a');
+  });
+
+  it('findArchivedById は未アーカイブの id では null', async () => {
+    const repo = new InMemoryTaskRepository([sampleTask({ id: 'a', status: 'done' })]);
+    expect(await repo.findArchivedById('a')).toBeNull();
+  });
+});

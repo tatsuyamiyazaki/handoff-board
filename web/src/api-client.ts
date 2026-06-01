@@ -56,3 +56,16 @@ export async function transitionTask(id: string, input: TransitionInput): Promis
   }
   return body.data;
 }
+
+/** POST /api/board/:id/complete。done タスクを archive へ移し、archive のタスクを返す。冪等。失敗は例外。 */
+export async function completeTask(id: string): Promise<Task> {
+  const res = await fetch(`${API_BASE}/api/board/${encodeURIComponent(id)}/complete`, {
+    method: 'POST',
+    headers: await authedHeaders(),
+  });
+  const body = (await res.json()) as ApiEnvelope<Task>;
+  if (!res.ok || !body.success || body.data === null) {
+    throw new Error(body.error ?? `アーカイブに失敗しました (${res.status})`);
+  }
+  return body.data;
+}

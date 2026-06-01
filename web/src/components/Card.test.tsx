@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Task } from '@handoff/shared';
 import { Card } from './Card';
 
@@ -40,5 +40,28 @@ describe('Card', () => {
   it('done タスクには「ブロック」ボタンを出さない', () => {
     render(<Card task={task({ status: 'done' })} />);
     expect(screen.queryByRole('button', { name: 'ブロック' })).not.toBeInTheDocument();
+  });
+
+  it('done タスクには「アーカイブ」ボタンがあり、押すと completeTask を呼び onArchived に渡す', async () => {
+    const archived = task({ id: 'fin', status: 'done' });
+    const completeTask = vi.fn().mockResolvedValue(archived);
+    const onArchived = vi.fn();
+    render(
+      <Card
+        task={task({ id: 'fin', status: 'done' })}
+        completeTask={completeTask}
+        onArchived={onArchived}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'アーカイブ' }));
+
+    await waitFor(() => expect(onArchived).toHaveBeenCalledWith(archived));
+    expect(completeTask).toHaveBeenCalledWith('fin');
+  });
+
+  it('done でないタスクには「アーカイブ」ボタンを出さない', () => {
+    render(<Card task={task({ status: 'in-progress' })} />);
+    expect(screen.queryByRole('button', { name: 'アーカイブ' })).not.toBeInTheDocument();
   });
 });

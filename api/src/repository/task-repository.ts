@@ -11,12 +11,12 @@ export class ConflictError extends Error {
 
 /**
  * Firestore アクセスを隠蔽する差し替え可能なインターフェース（docs/prd.md §モジュール構成）。
- * #01 findAll、#03 create、#04 findById/update を追加。complete は後続スライスで追加する。
+ * #01 findAll、#03 create、#04 findById/update、#06 complete/findArchivedById を追加。
  */
 export interface TaskRepository {
   /** 処理中ボード（board コレクション）の全タスクを返す。 */
   findAll(): Promise<Task[]>;
-  /** id 一致のタスクを返す。無ければ null。 */
+  /** id 一致のタスクを返す。無ければ null。board コレクションのみ対象。 */
   findById(id: string): Promise<Task | null>;
   /** 新規タスクを永続化し、保存後のタスクを返す。 */
   create(task: Task): Promise<Task>;
@@ -25,4 +25,11 @@ export interface TaskRepository {
    * 不一致または対象不存在は ConflictError(409)。
    */
   update(task: Task, expectedUpdatedAt: string): Promise<Task>;
+  /**
+   * 完了タスクを board から archive コレクションへ移動し、archive のタスクを返す（#06）。
+   * 呼び出し側で done 前提と activity 付与を済ませた task を渡す。
+   */
+  complete(task: Task): Promise<Task>;
+  /** archive コレクションの id 一致タスクを返す。無ければ null（complete の冪等判定に使う）。 */
+  findArchivedById(id: string): Promise<Task | null>;
 }
