@@ -2,7 +2,7 @@ import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { buildApp } from './app.js';
-import { loadBoardTokens, loadAllowedEmails } from './config.js';
+import { loadBoardTokens, loadAllowedEmails, loadCorsOrigins } from './config.js';
 import type { AuthConfig, TokenVerifier } from './auth/auth-middleware.js';
 import { FirebaseTokenVerifier } from './auth/firebase-token-verifier.js';
 import { FirestoreTaskRepository } from './repository/firestore-task-repository.js';
@@ -37,7 +37,11 @@ const auth: AuthConfig = {
   tokenVerifier,
 };
 
-const app = buildApp({ repository, auth });
+const app = buildApp({
+  repository,
+  auth,
+  corsOrigins: loadCorsOrigins(process.env.CORS_ORIGIN),
+});
 const port = Number(process.env.PORT ?? 8787);
 
 app
