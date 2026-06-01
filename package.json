@@ -1,0 +1,15 @@
+{
+  "name": "handoff",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "dev:api": "pnpm --filter @handoff/api dev",
+    "dev:web": "pnpm --filter @handoff/web dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

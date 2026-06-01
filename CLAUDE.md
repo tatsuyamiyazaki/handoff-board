@@ -6,9 +6,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **handoff** — 人間とAIの共同タスクボード (a shared task board for human–AI collaboration).
 
-This is a **greenfield repository**. As of this writing the only tracked files are `README.md`, `LICENSE` (MIT), and `.gitignore`. There is no source code, `package.json`, build tooling, or test setup yet — so there are no build/lint/test commands to run. The `.gitignore` is the standard Node.js template and lists Next.js, Vite, Nuxt, SvelteKit, etc., so a JavaScript/TypeScript web stack is anticipated but not yet committed.
+A pnpm-monorepo TypeScript fullstack app. Issue #01 (walking skeleton) is implemented; remaining slices are in `docs/issues/`. The PRD is `docs/prd.md`; design rationale lives in `docs/adr/`; the domain glossary is `CONTEXT.md` (use those terms: ボード=Firestore collection, カンバン=UI, レーン=column, タスク=work item, ディスパッチャー=local batch, オーナー≠actor).
 
-When the first real implementation lands, update this file with the actual commands (build, dev, lint, single-test invocation) and the architecture once it spans more than one file.
+### Workspaces
+
+- `shared/` — `@handoff/shared`: the single source of truth for the `Task` schema, status/owner/priority/action_type enums, and the API envelope (`{success,data,error}` + `ok()`/`fail()`). Type-only, no build step — consumed directly as `src/index.ts` via `workspace:*`.
+- `api/` — `@handoff/api`: Fastify + Firebase Admin SDK. `buildApp({repository, auth})` wires deps for injection; `server.ts` is the entry. Deep modules: `auth-middleware` (`authenticate()` throws `AuthError(status)`; dual auth per ADR-0001, machine `X-Board-Token` path done, human Firebase Bearer path is #02), `task-repository` (`TaskRepository` interface — `InMemoryTaskRepository` for tests/dev, `FirestoreTaskRepository` wired for prod/emulator). `transition-engine` (ADR-0002) arrives in #04.
+- `web/` — `@handoff/web`: Vite + React SPA. `Board` → `Lane` (`<section aria-label={status}>`) → `Card`; `api-client.fetchBoard()` unwraps the envelope. Polling/lane-counts are #08.
+- `dispatcher/` — `@handoff/dispatcher`: placeholder; implemented in #07.
+
+ESM throughout; imports use explicit `.js` extensions; tsconfig is `moduleResolution: Bundler` + `verbatimModuleSyntax`.
+
+### Commands
+
+| Task | Command |
+|---|---|
+| Install | `pnpm install` |
+| All tests | `pnpm -r test` |
+| Single package tests | `pnpm --filter @handoff/api test` (or `@handoff/web`) |
+| Watch a package | `pnpm --filter @handoff/api test:watch` |
+| Typecheck all | `pnpm -r typecheck` |
+| Dev API | `pnpm dev:api` (no Firestore emulator → falls back to in-memory + `devSeed`) |
+| Dev web | `pnpm dev:web` |
+| Web build | `pnpm --filter @handoff/web build` |
+| E2E | `pnpm --filter @handoff/web e2e` |
+
+### Environment notes
+
+- Unit/integration tests run **without** Java/Firestore emulator: `api` uses `InMemoryTaskRepository`, and the emulator-backed `FirestoreTaskRepository` test is `describe.skip` until a JVM + firebase CLI are available.
+- Config via env (`.env.example`): `BOARD_TOKENS` (token→actor JSON map), `ALLOWED_EMAILS` (human allowlist, #02). Never hardcode secrets.
 
 ## Working methodology (`.claude/skills/engineering/`)
 

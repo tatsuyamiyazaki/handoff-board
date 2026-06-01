@@ -1,0 +1,47 @@
+import type { Task } from '@handoff/shared';
+
+/** Firestore エミュレータ無しでも UI 表示を確認できるローカル開発用シード。 */
+export const devSeed: Task[] = [
+  {
+    id: 'seed-1',
+    title: '週次ニュースレターの下書き',
+    status: 'needs-ai',
+    owner: 'ai-batch',
+    priority: 'P1',
+    action_type: 'content',
+    handoff_note: '先週の更新を3段落でまとめて',
+    blocked_reason: null,
+    tags: [],
+    created_at: '2026-06-01T00:00:00Z',
+    updated_at: '2026-06-01T00:00:00Z',
+    activity: [{ timestamp: '2026-06-01T00:00:00Z', actor: 'human', action: 'created' }],
+  },
+  {
+    id: 'seed-2',
+    title: 'API 仕様レビュー',
+    status: 'needs-human',
+    owner: 'human',
+    priority: 'P2',
+    action_type: 'review',
+    handoff_note: 'エンドポイント命名を確認してほしい',
+    blocked_reason: null,
+    tags: ['dispatcher-lock'],
+    created_at: '2026-06-01T01:00:00Z',
+    updated_at: '2026-06-01T01:00:00Z',
+    activity: [{ timestamp: '2026-06-01T01:00:00Z', actor: 'human', action: 'created' }],
+  },
+  {
+    id: 'seed-3',
+    title: '競合調査メモの統合',
+    status: 'in-progress',
+    owner: 'ai-interactive',
+    priority: 'P2',
+    action_type: 'research',
+    handoff_note: '3社分を1ページに',
+    blocked_reason: null,
+    tags: [],
+    created_at: '2026-06-01T02:00:00Z',
+    updated_at: '2026-06-01T03:00:00Z',
+    activity: [{ timestamp: '2026-06-01T02:00:00Z', actor: 'human', action: 'created' }],
+  },
+];

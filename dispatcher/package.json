@@ -1,0 +1,16 @@
+{
+  "name": "@handoff/dispatcher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "echo \"(dispatcher: implemented in issue #07)\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@handoff/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

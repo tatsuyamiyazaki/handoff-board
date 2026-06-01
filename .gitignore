@@ -86,6 +86,12 @@ out
 dist
 .output
 
+# Playwright
+/web/test-results/
+/web/playwright-report/
+/web/blob-report/
+/web/playwright/.cache/
+
 # Gatsby files
 .cache/
 # Comment in the public line in if your project uses Gatsby and not Next.js
