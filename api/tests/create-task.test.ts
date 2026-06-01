@@ -100,4 +100,14 @@ describe('buildTask', () => {
       { timestamp: '2026-06-01T00:00:00.000Z', actor: 'ai-batch', action: 'created' },
     ]);
   });
+
+  it('created_by に作成者(actor)を記録する', () => {
+    const normalized = validateCreateTask(valid);
+    const task = buildTask(normalized, {
+      id: () => 'task-1',
+      now: () => '2026-06-01T00:00:00.000Z',
+      actor: 'taro@sunbit.co.jp',
+    });
+    expect(task.created_by).toBe('taro@sunbit.co.jp');
+  });
 });

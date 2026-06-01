@@ -1,6 +1,6 @@
 import type { Firestore } from 'firebase-admin/firestore';
 import type { Task } from '@handoff/shared';
-import { ConflictError, type TaskRepository } from './task-repository.js';
+import { ConflictError, type BoardFilter, type TaskRepository } from './task-repository.js';
 
 /** 処理中タスクの Firestore コレクション名。archive は完了タスク用（#06）。 */
 const BOARD_COLLECTION = 'board';
@@ -13,8 +13,14 @@ const ARCHIVE_COLLECTION = 'archive';
 export class FirestoreTaskRepository implements TaskRepository {
   constructor(private readonly db: Firestore) {}
 
-  async findAll(): Promise<Task[]> {
-    const snapshot = await this.db.collection(BOARD_COLLECTION).get();
+  async findAll(filter?: BoardFilter): Promise<Task[]> {
+    const collection = this.db.collection(BOARD_COLLECTION);
+    // createdBy 指定時はクエリ段階で絞り込む（全件取得して捨てる無駄を避ける）。
+    const query =
+      filter?.createdBy !== undefined
+        ? collection.where('created_by', '==', filter.createdBy)
+        : collection;
+    const snapshot = await query.get();
     return snapshot.docs.map((doc) => ({
       ...(doc.data() as Omit<Task, 'id'>),
       id: doc.id,

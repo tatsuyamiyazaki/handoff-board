@@ -13,6 +13,7 @@ const sampleTask = (over: Partial<Task> = {}): Task => ({
   handoff_note: 'お願いします',
   blocked_reason: null,
   tags: [],
+  created_by: 'creator@example.com',
   created_at: '2026-06-01T00:00:00Z',
   updated_at: '2026-06-01T00:00:00Z',
   activity: [],
@@ -33,6 +34,16 @@ describe('InMemoryTaskRepository.findAll', () => {
     const result = await repo.findAll();
     expect(result).toHaveLength(2);
     expect(result.map((t) => t.id).sort()).toEqual(['a', 'b']);
+  });
+
+  it('createdBy 指定時は作成者一致のタスクのみ返す', async () => {
+    const repo = new InMemoryTaskRepository([
+      sampleTask({ id: 'mine', created_by: 'me@example.com' }),
+      sampleTask({ id: 'other', created_by: 'other@example.com' }),
+      sampleTask({ id: 'legacy', created_by: null }),
+    ]);
+    const result = await repo.findAll({ createdBy: 'me@example.com' });
+    expect(result.map((t) => t.id)).toEqual(['mine']);
   });
 });
 

@@ -27,6 +27,7 @@ const sampleTask = (over: Partial<Task> = {}): Task => ({
   handoff_note: 'お願いします',
   blocked_reason: null,
   tags: [],
+  created_by: 'creator@example.com',
   created_at: '2026-06-01T00:00:00Z',
   updated_at: '2026-06-01T00:00:00Z',
   activity: [],
@@ -87,7 +88,11 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
-    const repository = new InMemoryTaskRepository([sampleTask({ id: 'a' })]);
+    // 自分（tatsuya）作成1件 + 他人作成1件。人間は自分のだけ、機械系は両方見える。
+    const repository = new InMemoryTaskRepository([
+      sampleTask({ id: 'mine', created_by: 'tatsuya.miyazaki@gmail.com' }),
+      sampleTask({ id: 'others', created_by: 'someone-else@gmail.com' }),
+    ]);
     app = buildApp({
       repository,
       auth: {
@@ -106,14 +111,16 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
     await app.close();
   });
 
-  it('許可リスト内メールの Bearer で 200・タスクを返す', async () => {
+  it('人間は自分が作成したタスクのみ 200 で返る（他人作成は除外）', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/board',
       headers: { authorization: 'Bearer good-id-token' },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().data).toHaveLength(1);
+    const body = res.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].id).toBe('mine');
   });
 
   it('許可リスト外メールの Bearer は 403', async () => {
@@ -126,13 +133,14 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
     expect(res.json().success).toBe(false);
   });
 
-  it('機械系 X-Board-Token は引き続き 200（回帰なし）', async () => {
+  it('機械系 X-Board-Token はボード全体（両方）を 200 で返す（絞り込まない）', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/board',
       headers: { 'x-board-token': 'dev-token' },
     });
     expect(res.statusCode).toBe(200);
+    expect(res.json().data).toHaveLength(2);
   });
 });
 

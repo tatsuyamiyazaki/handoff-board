@@ -16,6 +16,7 @@ const baseTask = (over: Partial<Task> = {}): Task => ({
   handoff_note: '最初のメモ',
   blocked_reason: null,
   tags: [],
+  created_by: 'creator@example.com',
   created_at: '2026-06-01T00:00:00.000Z',
   updated_at: '2026-06-01T00:00:00.000Z',
   activity: [{ timestamp: '2026-06-01T00:00:00.000Z', actor: 'human', action: 'created' }],

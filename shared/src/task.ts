@@ -46,6 +46,12 @@ export interface Task {
   /** blocked 時のみ理由文字列、それ以外は null。 */
   blocked_reason: string | null;
   tags: string[];
+  /**
+   * このタスクを作成した主体。人間作成時はサインインメール、機械系作成時はトークン種別。
+   * 人間UIはこの値が自分のメールと一致するタスクだけを読み込む（ボードのユーザー絞り込み）。
+   * 作成主体不明（レガシー）の場合は null。
+   */
+  created_by: string | null;
   /** ISO 8601 */
   created_at: string;
   /** ISO 8601。楽観的並行制御の照合キー。 */

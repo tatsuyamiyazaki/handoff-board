@@ -3,12 +3,12 @@ import { authHeaders } from './auth/auth-headers';
 import { currentIdToken } from './auth/firebase-auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
-// 開発用の機械系トークン（api の .env.example の BOARD_TOKENS と対応）。人間ログイン中は使われない。
-const DEV_BOARD_TOKEN = import.meta.env.VITE_BOARD_TOKEN ?? 'dev-board-token';
 
+// Web は人間ログイン専用。サインイン中のみ Bearer を付け、未ログインは無認証で送る
+// （サーバーは 401 を返す）。機械系 X-Board-Token はブラウザからは使わない。
 async function authedHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
   const idToken = await currentIdToken();
-  return { ...authHeaders(idToken, DEV_BOARD_TOKEN), ...extra };
+  return { ...authHeaders(idToken), ...extra };
 }
 
 /** GET /api/board。サインイン中は Bearer、未ログインは X-Board-Token で認証し、envelope を剥がす。失敗は例外。 */

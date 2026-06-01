@@ -13,10 +13,12 @@ import {
 // #02 Firebase サインイン、#03 タスク作成、#05/#06 遷移・アーカイブ、#08 ポーリング自動更新。
 export function App() {
   const queryClient = useQueryClient();
-  const { data: tasks = [], error } = useBoard();
   const [authError, setAuthError] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  // サインイン中のみボードを取得する。未ログイン時は他人のタスクを一切読み込まない。
+  const isSignedIn = email !== null;
+  const { data: tasks = [], error } = useBoard({ enabled: isSignedIn });
 
   useEffect(() => onUserChange(setEmail), []);
 
@@ -36,9 +38,11 @@ export function App() {
           <p className="app__subtitle">人間とAIの共同タスクボード</p>
         </div>
         <div className="app__auth">
-          <button type="button" onClick={() => setShowCreate(true)}>
-            新規タスク
-          </button>
+          {isSignedIn && (
+            <button type="button" onClick={() => setShowCreate(true)}>
+              新規タスク
+            </button>
+          )}
           {email ? (
             <>
               <span className="app__user">{email}</span>
@@ -66,7 +70,13 @@ export function App() {
           {message}
         </p>
       )}
-      <Board tasks={tasks} onTransitioned={refreshBoard} onArchived={refreshBoard} />
+      {isSignedIn ? (
+        <Board tasks={tasks} onTransitioned={refreshBoard} onArchived={refreshBoard} />
+      ) : (
+        <p className="app__signin-prompt">
+          サインインすると、あなたが作成したタスクのボードが表示されます。
+        </p>
+      )}
       {showCreate && (
         <CreateTaskDialog
           onClose={() => setShowCreate(false)}

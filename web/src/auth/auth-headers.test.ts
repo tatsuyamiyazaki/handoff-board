@@ -3,14 +3,12 @@ import { authHeaders } from './auth-headers';
 
 describe('authHeaders', () => {
   it('人間ログイン中（ID トークンあり）は Authorization: Bearer を返す', () => {
-    expect(authHeaders('id-token-abc', 'dev-board-token')).toEqual({
+    expect(authHeaders('id-token-abc')).toEqual({
       Authorization: 'Bearer id-token-abc',
     });
   });
 
-  it('未ログイン（ID トークンなし）は開発用 X-Board-Token にフォールバックする', () => {
-    expect(authHeaders(null, 'dev-board-token')).toEqual({
-      'x-board-token': 'dev-board-token',
-    });
+  it('未ログイン（ID トークンなし）は認証ヘッダを付けない（機械系トークンにフォールバックしない）', () => {
+    expect(authHeaders(null)).toEqual({});
   });
 });

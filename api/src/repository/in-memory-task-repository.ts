@@ -1,5 +1,5 @@
 import type { Task } from '@handoff/shared';
-import { ConflictError, type TaskRepository } from './task-repository.js';
+import { ConflictError, type BoardFilter, type TaskRepository } from './task-repository.js';
 
 /**
  * テスト・ローカル開発用のメモリ実装。Firestore エミュレータ（Java）不要。
@@ -14,8 +14,12 @@ export class InMemoryTaskRepository implements TaskRepository {
     this.archived = new Map(archivedInitial.map((t) => [t.id, structuredClone(t)]));
   }
 
-  async findAll(): Promise<Task[]> {
-    return [...this.tasks.values()].map((t) => structuredClone(t));
+  async findAll(filter?: BoardFilter): Promise<Task[]> {
+    let tasks = [...this.tasks.values()];
+    if (filter?.createdBy !== undefined) {
+      tasks = tasks.filter((t) => t.created_by === filter.createdBy);
+    }
+    return tasks.map((t) => structuredClone(t));
   }
 
   async findById(id: string): Promise<Task | null> {

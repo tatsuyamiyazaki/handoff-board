@@ -113,6 +113,7 @@ export function buildTask(normalized: NormalizedCreate, deps: BuildTaskDeps): Ta
     handoff_note: normalized.handoff_note,
     blocked_reason: null,
     tags: normalized.tags,
+    created_by: deps.actor,
     created_at: timestamp,
     updated_at: timestamp,
     activity: [{ timestamp, actor: deps.actor, action: 'created' }],

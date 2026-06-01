@@ -13,16 +13,20 @@ interface UseBoardOptions {
   queryFn?: () => Promise<Task[]>;
   /** 再取得間隔（ミリ秒）。既定は BOARD_POLL_INTERVAL_MS。 */
   refetchInterval?: number;
+  /** サインイン済みのときだけ取得する。未ログイン時は取得・ポーリングを止める。既定は true。 */
+  enabled?: boolean;
 }
 
 /**
  * ボードを取得し、一定間隔で自動再取得する（#08）。
  * 他クライアント（人間/AI/ディスパッチャー）の変更はポーリングで反映される。
+ * enabled=false（未ログイン）の間は取得しない。
  */
 export function useBoard(options: UseBoardOptions = {}): UseQueryResult<Task[]> {
   return useQuery({
     queryKey: BOARD_QUERY_KEY,
     queryFn: options.queryFn ?? fetchBoard,
     refetchInterval: options.refetchInterval ?? BOARD_POLL_INTERVAL_MS,
+    enabled: options.enabled ?? true,
   });
 }

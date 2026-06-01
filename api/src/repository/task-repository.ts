@@ -1,5 +1,11 @@
 import type { Task } from '@handoff/shared';
 
+/** findAll の絞り込み条件。createdBy 指定時は created_by 完全一致のタスクのみ返す。 */
+export interface BoardFilter {
+  /** 作成者（created_by）でボードを絞り込む。人間UIは自分のメールを渡す。 */
+  createdBy?: string;
+}
+
 /** 楽観的並行制御の衝突。last-seen updated_at が現在値と不一致。HTTP 409 に対応（ADR-0002）。 */
 export class ConflictError extends Error {
   readonly status = 409 as const;
@@ -14,8 +20,8 @@ export class ConflictError extends Error {
  * #01 findAll、#03 create、#04 findById/update、#06 complete/findArchivedById を追加。
  */
 export interface TaskRepository {
-  /** 処理中ボード（board コレクション）の全タスクを返す。 */
-  findAll(): Promise<Task[]>;
+  /** 処理中ボード（board コレクション）のタスクを返す。filter.createdBy 指定時は作成者で絞り込む。 */
+  findAll(filter?: BoardFilter): Promise<Task[]>;
   /** id 一致のタスクを返す。無ければ null。board コレクションのみ対象。 */
   findById(id: string): Promise<Task | null>;
   /** 新規タスクを永続化し、保存後のタスクを返す。 */

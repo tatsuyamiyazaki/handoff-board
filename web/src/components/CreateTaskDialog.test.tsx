@@ -13,6 +13,7 @@ const sampleTask = (over: Partial<Task> = {}): Task => ({
   handoff_note: 'お願い',
   blocked_reason: null,
   tags: [],
+  created_by: 'creator@example.com',
   created_at: '2026-06-01T00:00:00.000Z',
   updated_at: '2026-06-01T00:00:00.000Z',
   activity: [],
