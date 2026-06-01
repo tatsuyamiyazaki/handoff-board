@@ -82,6 +82,43 @@ describe('validateCreateTask（既定値）', () => {
     const err = caught(() => validateCreateTask({ ...valid, priority: 'P9' }));
     expect(err.status).toBe(422);
   });
+
+  it('agent/project/milestone 省略時は null を既定値にする', () => {
+    const result = validateCreateTask(valid);
+    expect(result.agent).toBeNull();
+    expect(result.project).toBeNull();
+    expect(result.milestone).toBeNull();
+  });
+
+  it('空文字の project/milestone は null に正規化する', () => {
+    const result = validateCreateTask({ ...valid, project: '  ', milestone: '' });
+    expect(result.project).toBeNull();
+    expect(result.milestone).toBeNull();
+  });
+});
+
+describe('validateCreateTask（agent と owner の二軸 / ADR-0004）', () => {
+  it('AI 系 owner では有効な agent を受理する', () => {
+    const result = validateCreateTask({ ...valid, owner: 'ai-batch', agent: 'codex' });
+    expect(result.agent).toBe('codex');
+  });
+
+  it('owner=human で agent を指定すると 422', () => {
+    const err = caught(() =>
+      validateCreateTask({
+        ...valid,
+        owner: 'human',
+        status: 'needs-human',
+        agent: 'codex',
+      }),
+    );
+    expect(err.status).toBe(422);
+  });
+
+  it('不正な agent 値は 422', () => {
+    const err = caught(() => validateCreateTask({ ...valid, owner: 'ai-batch', agent: 'bard' }));
+    expect(err.status).toBe(422);
+  });
 });
 
 describe('buildTask', () => {
@@ -99,6 +136,23 @@ describe('buildTask', () => {
     expect(task.activity).toEqual([
       { timestamp: '2026-06-01T00:00:00.000Z', actor: 'ai-batch', action: 'created' },
     ]);
+  });
+
+  it('agent/project/milestone を Task に刻む', () => {
+    const normalized = validateCreateTask({
+      ...valid,
+      agent: 'codex',
+      project: 'AIRFLOW',
+      milestone: 'v3',
+    });
+    const task = buildTask(normalized, {
+      id: () => 'task-1',
+      now: () => '2026-06-01T00:00:00.000Z',
+      actor: 'ai-batch',
+    });
+    expect(task.agent).toBe('codex');
+    expect(task.project).toBe('AIRFLOW');
+    expect(task.milestone).toBe('v3');
   });
 
   it('created_by に作成者(actor)を記録する', () => {

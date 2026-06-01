@@ -2,7 +2,7 @@
 // 編集対象: title / owner / priority / action_type / handoff_note / tags。
 // created_at / created_by / id / status / blocked_reason は不変。
 
-import { ValidationError } from './create-task.js';
+import { ValidationError, normalizeAgent, normalizeOptionalString } from './create-task.js';
 import {
   OWNERS,
   PRIORITIES,
@@ -11,6 +11,7 @@ import {
   type Owner,
   type Priority,
   type ActionType,
+  type Agent,
 } from './task.js';
 
 /** 検証・既定値適用済みの編集ペイロード（status は含まない）。 */
@@ -21,6 +22,9 @@ export interface NormalizedEdit {
   action_type: ActionType;
   handoff_note: string;
   tags: string[];
+  agent: Agent | null;
+  project: string | null;
+  milestone: string | null;
 }
 
 function asRecord(input: unknown): Record<string, unknown> {
@@ -73,7 +77,11 @@ export function validateEditTask(input: unknown): NormalizedEdit {
     throw new ValidationError('tags must be an array of strings');
   }
 
-  return { title, owner, priority, action_type, handoff_note, tags };
+  const agent = normalizeAgent(body.agent, owner);
+  const project = normalizeOptionalString(body.project, 'project');
+  const milestone = normalizeOptionalString(body.milestone, 'milestone');
+
+  return { title, owner, priority, action_type, handoff_note, tags, agent, project, milestone };
 }
 
 /** applyEdit の副作用（時刻・実行者）を注入する依存。 */
@@ -97,6 +105,9 @@ export function applyEdit(task: Task, normalized: NormalizedEdit, deps: EditTask
     action_type: normalized.action_type,
     handoff_note: normalized.handoff_note,
     tags: normalized.tags,
+    agent: normalized.agent,
+    project: normalized.project,
+    milestone: normalized.milestone,
     updated_at: timestamp,
     activity: [...task.activity, { timestamp, actor: deps.actor, action: 'edited' }],
   };
