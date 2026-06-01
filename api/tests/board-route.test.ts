@@ -212,3 +212,114 @@ describe('POST /api/board（作成）', () => {
     expect(task.tags).toEqual([]);
   });
 });
+
+describe('PATCH /api/board/:id（status 遷移）', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    const repository = new InMemoryTaskRepository([
+      sampleTask({
+        id: 'a',
+        status: 'needs-ai',
+        owner: 'human',
+        updated_at: '2026-06-01T00:00:00Z',
+      }),
+      sampleTask({
+        id: 'wip',
+        status: 'in-progress',
+        owner: 'ai-batch',
+        updated_at: '2026-06-01T00:00:00Z',
+      }),
+    ]);
+    app = buildApp({
+      repository,
+      auth: { boardTokens },
+      clock: () => '2026-06-01T09:00:00.000Z',
+    });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('許可遷移（needs-ai→in-progress）で 200・status更新・actor を activity に記録・owner 不変', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/a',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { to: 'in-progress', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(200);
+    const task = res.json().data;
+    expect(task.status).toBe('in-progress');
+    expect(task.owner).toBe('human');
+    expect(task.updated_at).toBe('2026-06-01T09:00:00.000Z');
+    expect(task.activity.at(-1)).toMatchObject({
+      actor: 'ai-batch',
+      action: 'needs-ai → in-progress',
+    });
+  });
+
+  it('禁止遷移（needs-ai→done）は 422', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/a',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { to: 'done', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().success).toBe(false);
+  });
+
+  it('引き継ぎ（in-progress→needs-ai）で handoff_note 欠落は 422', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { to: 'needs-ai', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(422);
+  });
+
+  it('古い updated_at（競合）は 409', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/a',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { to: 'in-progress', updated_at: '2025-01-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().success).toBe(false);
+  });
+
+  it('存在しない id は 404', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/ghost',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { to: 'in-progress', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().success).toBe(false);
+  });
+
+  it('updated_at 欠落は 422（前提条件不備）', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/a',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { to: 'in-progress' },
+    });
+    expect(res.statusCode).toBe(422);
+  });
+
+  it('認証ヘッダー欠落は 401', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/a',
+      payload: { to: 'in-progress', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+});

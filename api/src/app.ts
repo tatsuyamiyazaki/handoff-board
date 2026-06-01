@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { fail, ValidationError } from '@handoff/shared';
 import { AuthError, type AuthConfig } from './auth/auth-middleware.js';
 import { registerBoardRoutes } from './routes/board.js';
-import type { TaskRepository } from './repository/task-repository.js';
+import { ConflictError, type TaskRepository } from './repository/task-repository.js';
 
 export interface AppDeps {
   repository: TaskRepository;
@@ -23,6 +23,10 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       return;
     }
     if (error instanceof ValidationError) {
+      reply.status(error.status).send(fail(error.message));
+      return;
+    }
+    if (error instanceof ConflictError) {
       reply.status(error.status).send(fail(error.message));
       return;
     }

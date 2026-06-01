@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Task } from '@handoff/shared';
 import { InMemoryTaskRepository } from '../src/repository/in-memory-task-repository.js';
+import { ConflictError } from '../src/repository/task-repository.js';
 
 const sampleTask = (over: Partial<Task> = {}): Task => ({
   id: 't1',
@@ -32,5 +33,55 @@ describe('InMemoryTaskRepository.findAll', () => {
     const result = await repo.findAll();
     expect(result).toHaveLength(2);
     expect(result.map((t) => t.id).sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('InMemoryTaskRepository.findById', () => {
+  it('id 一致のタスクを返す', async () => {
+    const repo = new InMemoryTaskRepository([sampleTask({ id: 'a' })]);
+    const found = await repo.findById('a');
+    expect(found?.id).toBe('a');
+  });
+
+  it('存在しない id では null を返す', async () => {
+    const repo = new InMemoryTaskRepository([sampleTask({ id: 'a' })]);
+    expect(await repo.findById('zzz')).toBeNull();
+  });
+});
+
+describe('InMemoryTaskRepository.update（楽観的並行制御）', () => {
+  it('expectedUpdatedAt が現在値と一致すれば更新し、新タスクを返す', async () => {
+    const repo = new InMemoryTaskRepository([
+      sampleTask({ id: 'a', updated_at: '2026-06-01T00:00:00Z' }),
+    ]);
+    const next = sampleTask({
+      id: 'a',
+      status: 'in-progress',
+      updated_at: '2026-06-01T09:00:00Z',
+    });
+
+    const saved = await repo.update(next, '2026-06-01T00:00:00Z');
+
+    expect(saved.status).toBe('in-progress');
+    expect((await repo.findById('a'))?.status).toBe('in-progress');
+  });
+
+  it('expectedUpdatedAt が古い（不一致）なら ConflictError・保存内容は不変', async () => {
+    const repo = new InMemoryTaskRepository([
+      sampleTask({ id: 'a', updated_at: '2026-06-01T05:00:00Z' }),
+    ]);
+    const next = sampleTask({ id: 'a', status: 'in-progress' });
+
+    await expect(repo.update(next, '2026-06-01T00:00:00Z')).rejects.toBeInstanceOf(
+      ConflictError,
+    );
+    expect((await repo.findById('a'))?.status).toBe('needs-ai');
+  });
+
+  it('存在しない id の update は ConflictError', async () => {
+    const repo = new InMemoryTaskRepository([]);
+    await expect(
+      repo.update(sampleTask({ id: 'ghost' }), '2026-06-01T00:00:00Z'),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 });
