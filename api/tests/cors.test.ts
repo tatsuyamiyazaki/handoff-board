@@ -29,6 +29,29 @@ describe('CORS', () => {
     expect(res.headers['access-control-allow-origin']).toBe(ORIGIN);
   });
 
+  it('カード削除(DELETE)のプリフライトを許可する', async () => {
+    const app = buildApp({
+      repository: new InMemoryTaskRepository([]),
+      auth: { boardTokens },
+      corsOrigins: [ORIGIN],
+    });
+    await app.ready();
+
+    const res = await app.inject({
+      method: 'OPTIONS',
+      url: '/api/board/some-id',
+      headers: {
+        origin: ORIGIN,
+        'access-control-request-method': 'DELETE',
+        'access-control-request-headers': 'x-board-token',
+      },
+    });
+
+    expect(res.statusCode).toBeLessThan(300);
+    expect(res.headers['access-control-allow-origin']).toBe(ORIGIN);
+    expect(res.headers['access-control-allow-methods']).toContain('DELETE');
+  });
+
   it('corsOrigins 未指定なら CORS ヘッダを付けない（既定では無効）', async () => {
     const app = buildApp({ repository: new InMemoryTaskRepository([]), auth: { boardTokens } });
     await app.ready();

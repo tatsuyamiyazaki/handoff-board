@@ -25,7 +25,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   if (deps.corsOrigins && deps.corsOrigins.length > 0) {
     void app.register(cors, {
       origin: deps.corsOrigins,
-      methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Board-Token'],
     });
   }
