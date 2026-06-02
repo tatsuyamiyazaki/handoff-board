@@ -32,8 +32,10 @@ function createBackend(): { repository: TaskRepository; tokenVerifier?: TokenVer
     return { repository: new InMemoryTaskRepository(devSeed) };
   }
 
+  // applicationDefault() は GOOGLE_APPLICATION_CREDENTIALS / Cloud Run のメタデータ ADC /
+  // gcloud ADC のいずれからも資格情報を解決する。undefined を渡すと admin が弾くため常にこれを使う。
   initializeApp({
-    credential: process.env.GOOGLE_APPLICATION_CREDENTIALS ? applicationDefault() : undefined,
+    credential: applicationDefault(),
     projectId: process.env.GCLOUD_PROJECT,
   });
   return {
