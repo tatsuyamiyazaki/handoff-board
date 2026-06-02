@@ -36,6 +36,10 @@ ESM throughout; imports use explicit `.js` extensions; tsconfig is `moduleResolu
 - Unit/integration tests run **without** Java/Firestore emulator: `api` uses `InMemoryTaskRepository`, and the emulator-backed `FirestoreTaskRepository` test is `describe.skip` until a JVM + firebase CLI are available.
 - Config via env (`.env.example`): `BOARD_TOKENS` (token→actor JSON map), `ALLOWED_EMAILS` (human allowlist, #02). Never hardcode secrets.
 
+### Deployment
+
+Live as of 2026-06-02: API on **Cloud Run** (`handoff-api`, `asia-northeast1`, Firestore-backed) and web on **Firebase Hosting** (`https://handoff-dashboard.web.app`), GCP project `handoff-dashboard`. The full infra map, env/secrets, and redeploy commands live in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — read it before touching deploy/infra. Key prod gotcha: on Cloud Run, Firestore is selected via `USE_FIRESTORE`/`K_SERVICE` and creds come from managed ADC (`applicationDefault()`), not `GOOGLE_APPLICATION_CREDENTIALS`.
+
 ## Working methodology (`.claude/skills/engineering/`)
 
 This repo carries an installed set of engineering skills (the "Matt Pocock" collection) under `.claude/` that define how work should flow here. They are not committed to git but are part of the working tree. Key ones, invoked as slash commands:
