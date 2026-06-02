@@ -1,0 +1,23 @@
+# シークレット/ローカル env は絶対にイメージへ焼き込まない。
+.env
+.env.*
+!.env.example
+
+# 依存とビルド成果物（イメージ内で再インストール/不要）。
+**/node_modules
+**/dist
+**/.output
+**/.vite
+
+# VCS・ローカルツール・生成物。
+.git
+.gitignore
+.claude
+**/coverage
+**/test-results
+**/playwright-report
+**/playwright/.cache
+
+# ログ・その他。
+*.log
+**/*.tsbuildinfo

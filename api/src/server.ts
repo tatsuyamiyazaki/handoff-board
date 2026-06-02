@@ -19,8 +19,15 @@ import { devSeed } from './dev-seed.js';
 // Firestore リポジトリと ID トークン検証器を生成する。
 // Java/firebase CLI 未導入のローカルでは初期化せず、in-memory + シードで起動する（人間パスは利用不可）。
 function createBackend(): { repository: TaskRepository; tokenVerifier?: TokenVerifier } {
+  // Firestore を使う条件:
+  //  - エミュレータ接続 / ローカルの SA キー（GOOGLE_APPLICATION_CREDENTIALS）
+  //  - 明示フラグ USE_FIRESTORE（Cloud Run など ADC がメタデータ経由のとき用）
+  //  - Cloud Run 実行時に自動付与される K_SERVICE（保険の自動検出）
   const useFirebase =
-    process.env.FIRESTORE_EMULATOR_HOST || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    process.env.FIRESTORE_EMULATOR_HOST ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    process.env.USE_FIRESTORE ||
+    process.env.K_SERVICE;
   if (!useFirebase) {
     return { repository: new InMemoryTaskRepository(devSeed) };
   }
