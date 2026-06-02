@@ -334,6 +334,31 @@ body {
   background: var(--surface-elevated);
 }
 
+/* 優先度カラー（緊急度の階調）。左端の色帯と priority ラベルに使う。 */
+.card[data-priority='P0'] {
+  --prio: oklch(63% 0.23 25); /* 赤＝即時対応 */
+}
+.card[data-priority='P1'] {
+  --prio: oklch(72% 0.17 60); /* 橙＝本日中 */
+}
+.card[data-priority='P2'] {
+  --prio: oklch(72% 0.13 230); /* 青＝今週中 */
+}
+.card[data-priority='P3'] {
+  --prio: oklch(60% 0.02 250); /* 灰＝いつでも */
+}
+
+/* カード左端の優先度色帯。padding に影響しない絶対配置。 */
+.card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--prio, transparent);
+}
+
 .card__assignee {
   margin-left: auto; /* meta 行の右端へ寄せる。 */
   display: inline-flex;
@@ -395,7 +420,8 @@ body {
   font-size: 11px;
   letter-spacing: 1px;
   font-variant-numeric: tabular-nums;
-  color: var(--on-dark);
+  /* 左端の色帯と同じ優先度カラーでラベルも色分け。 */
+  color: var(--prio, var(--on-dark));
 }
 
 /* project · milestone · action_type を中黒で繋いだ横並び。狭ければ省略。 */
