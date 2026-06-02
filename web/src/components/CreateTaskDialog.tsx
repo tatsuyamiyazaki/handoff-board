@@ -95,6 +95,7 @@ export function CreateTaskDialog({
           </p>
         )}
 
+        <div className="create-dialog__fields">
         <label className="field">
           <span>タイトル</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -145,10 +146,11 @@ export function CreateTaskDialog({
           <input value={milestone} onChange={(e) => setMilestone(e.target.value)} />
         </label>
 
-        <label className="field">
+        <label className="field field--full">
           <span>引き継ぎメモ</span>
           <textarea value={handoffNote} onChange={(e) => setHandoffNote(e.target.value)} />
         </label>
+        </div>
 
         <div className="create-dialog__actions">
           <button type="button" aria-label="キャンセル" title="キャンセル" onClick={onClose}>

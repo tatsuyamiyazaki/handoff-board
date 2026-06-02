@@ -476,6 +476,34 @@ body {
   gap: var(--space-md);
 }
 
+/* Create/Edit pack many fields — widen to two columns and cap the height so
+ * the submit button stays reachable. The cap engages only when content would
+ * exceed the viewport (tall phones); desktop two-column rarely scrolls. */
+.create-dialog {
+  width: min(44rem, 100%);
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+
+.create-dialog__fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md) var(--space-lg);
+}
+
+/* Full-width rows: the free-text inputs that need the room. */
+.create-dialog__fields .field--full {
+  grid-column: 1 / -1;
+}
+
+/* Narrow screens: collapse to a single column; the height cap above is the
+ * safety net so a tall single column still scrolls instead of clipping. */
+@media (max-width: 520px) {
+  .create-dialog__fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .create-dialog__title,
 .block-dialog__title,
 .unblock-dialog__title {
