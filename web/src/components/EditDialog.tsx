@@ -11,6 +11,7 @@ import {
   type Agent,
 } from '@handoff/shared';
 import { editTask as defaultEditTask, type EditInput } from '../api-client';
+import { useLabelOptions } from '../lib/label-options';
 import { AgentField } from './AgentField';
 import { Icon } from './icons';
 
@@ -40,6 +41,7 @@ export function EditDialog({
   const [agent, setAgent] = useState<Agent | ''>(task.agent ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { projects, milestones } = useLabelOptions();
 
   // ADR-0004: owner=human は agent を持てない。AI 系のときだけ担当 AI を編集できる。
   const isAiOwner = owner !== 'human';
@@ -144,12 +146,30 @@ export function EditDialog({
 
         <label className="field">
           <span>プロジェクト</span>
-          <input value={project} onChange={(e) => setProject(e.target.value)} />
+          <input
+            list="edit-project-options"
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+          />
+          <datalist id="edit-project-options">
+            {projects.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
         </label>
 
         <label className="field">
           <span>マイルストーン</span>
-          <input value={milestone} onChange={(e) => setMilestone(e.target.value)} />
+          <input
+            list="edit-milestone-options"
+            value={milestone}
+            onChange={(e) => setMilestone(e.target.value)}
+          />
+          <datalist id="edit-milestone-options">
+            {milestones.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
         </label>
 
         <label className="field field--full">

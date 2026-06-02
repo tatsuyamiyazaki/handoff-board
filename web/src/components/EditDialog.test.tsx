@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Task } from '@handoff/shared';
 import { EditDialog } from './EditDialog';
+import { LabelOptionsProvider } from '../lib/label-options';
 
 const task = (over: Partial<Task> = {}): Task => ({
   id: 't1',
@@ -94,6 +95,17 @@ describe('EditDialog', () => {
     await waitFor(() =>
       expect(editTask).toHaveBeenCalledWith('t1', expect.objectContaining({ agent: 'gemini' })),
     );
+  });
+
+  it('既存の project を datalist 候補としてサジェストする', () => {
+    render(
+      <LabelOptionsProvider value={{ projects: ['API刷新', 'ニュースレター'], milestones: ['v2'] }}>
+        <EditDialog task={task()} onClose={() => {}} onEdited={() => {}} editTask={vi.fn()} />
+      </LabelOptionsProvider>,
+    );
+    const projectInput = screen.getByLabelText('プロジェクト');
+    const projectList = document.getElementById(projectInput.getAttribute('list') ?? '');
+    expect(projectList?.querySelector('option[value="API刷新"]')).toBeInTheDocument();
   });
 
   it('owner=human のタスクでは AI（担当）欄を表示しない（ADR-0004 不変条件）', () => {

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Task } from '@handoff/shared';
 import { CreateTaskDialog } from './CreateTaskDialog';
+import { LabelOptionsProvider } from '../lib/label-options';
 
 const sampleTask = (over: Partial<Task> = {}): Task => ({
   id: 'new-1',
@@ -113,6 +114,37 @@ describe('CreateTaskDialog', () => {
     fireEvent.change(screen.getByLabelText('担当'), { target: { value: 'human' } });
 
     expect(screen.queryByLabelText('AI（担当）')).not.toBeInTheDocument();
+  });
+
+  it('既存の project/milestone を datalist 候補としてサジェストする', () => {
+    render(
+      <LabelOptionsProvider value={{ projects: ['ニュースレター', 'API刷新'], milestones: ['6月号'] }}>
+        <CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={vi.fn()} />
+      </LabelOptionsProvider>,
+    );
+
+    const projectInput = screen.getByLabelText('プロジェクト');
+    const projectList = document.getElementById(projectInput.getAttribute('list') ?? '');
+    expect(projectList?.querySelector('option[value="ニュースレター"]')).toBeInTheDocument();
+    expect(projectList?.querySelector('option[value="API刷新"]')).toBeInTheDocument();
+
+    const milestoneInput = screen.getByLabelText('マイルストーン');
+    const milestoneList = document.getElementById(milestoneInput.getAttribute('list') ?? '');
+    expect(milestoneList?.querySelector('option[value="6月号"]')).toBeInTheDocument();
+  });
+
+  it('Provider 無し（候補なし）でも project は自由入力できる', async () => {
+    const createTask = vi.fn().mockResolvedValue(sampleTask());
+    render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={createTask} />);
+
+    fireEvent.change(screen.getByLabelText('タイトル'), { target: { value: '記事' } });
+    fireEvent.change(screen.getByLabelText('引き継ぎメモ'), { target: { value: 'お願い' } });
+    fireEvent.change(screen.getByLabelText('プロジェクト'), { target: { value: '新規PJ' } });
+    fireEvent.click(screen.getByRole('button', { name: '作成' }));
+
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ project: '新規PJ' })),
+    );
   });
 
   it('サーバーエラー（例外）時はエラーを表示し onCreated を呼ばない', async () => {

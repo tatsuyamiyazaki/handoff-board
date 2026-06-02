@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Board } from './components/Board';
 import { BoardControls } from './components/BoardControls';
 import { CreateTaskDialog } from './components/CreateTaskDialog';
-import { filterTasks, ALL, type BoardFilter } from './lib/board-view';
+import { filterTasks, distinctValues, ALL, type BoardFilter } from './lib/board-view';
+import { LabelOptionsProvider } from './lib/label-options';
 import { useBoard, BOARD_QUERY_KEY } from './hooks/useBoard';
 import {
   isAuthConfigured,
@@ -29,6 +30,11 @@ export function App() {
   const { data: tasks = [], error } = useBoard({ enabled: isSignedIn });
   // サマリ・選択肢は全タスク、カンバンには絞り込み後を渡す。
   const visibleTasks = filterTasks(tasks, filter);
+  // ダイアログの datalist 候補は、フィルタ前の全タスク由来の既存 project/milestone。
+  const labelOptions = {
+    projects: distinctValues(tasks, 'project'),
+    milestones: distinctValues(tasks, 'milestone'),
+  };
 
   useEffect(() => onUserChange(setEmail), []);
 
@@ -41,6 +47,7 @@ export function App() {
   const message = authError ?? (error instanceof Error ? error.message : null);
 
   return (
+    <LabelOptionsProvider value={labelOptions}>
     <main className="app">
       <header className="app__header">
         <div className="app__brand">
@@ -117,5 +124,6 @@ export function App() {
         />
       )}
     </main>
+    </LabelOptionsProvider>
   );
 }
