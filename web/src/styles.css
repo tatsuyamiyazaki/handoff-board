@@ -158,8 +158,8 @@ body {
 }
 
 .card__actions button {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
 }
 
 .app__auth button:hover:not(:disabled),
@@ -319,10 +319,14 @@ body {
 
 /* ── Cards ───────────────────────────────────────────────────────────── */
 .card {
+  position: relative; /* hover/focus で出すアクションオーバーレイの基準。 */
   background: var(--surface-card);
   border: 0;
   border-radius: var(--rounded-none);
-  padding: var(--space-lg);
+  padding: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
   transition: background 200ms ease;
 }
 
@@ -331,15 +335,16 @@ body {
 }
 
 .card__assignee {
+  margin-left: auto; /* meta 行の右端へ寄せる。 */
   display: inline-flex;
   align-items: center;
   gap: var(--space-xxs);
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--muted);
-  margin: 0 0 var(--space-xs);
+  white-space: nowrap;
 }
 
 /* 担当ドット本体（ADR-0004: agent ごとに色対応を1行ずつ足す）。 */
@@ -370,82 +375,76 @@ body {
 .card__title {
   font-family: var(--font-text);
   font-weight: 400;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.4;
   color: var(--body-strong);
-  margin: 0 0 var(--space-md);
+  margin: 0;
 }
 
+/* Row 1: 1行の密な meta。priority・タグライン・blocked・担当ドットを横詰め。 */
 .card__meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-md) var(--space-lg);
+  align-items: center;
+  gap: var(--space-xs);
   margin: 0;
-}
-
-.card__meta div {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xxs);
-}
-
-.card__meta dt {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--muted);
-}
-
-.card__meta dd {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 16px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--on-dark);
+  min-height: 14px;
 }
 
 .card__priority {
-  font-variant-numeric: tabular-nums;
-}
-
-.card__tags {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-md);
-  margin: var(--space-md) 0 0;
-  padding: 0;
-}
-
-/* Tags are the type itself — no fill, no border. */
-.card__tag {
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--muted);
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-dark);
 }
 
-.card__tag::before {
-  content: '/ ';
+/* project · milestone · action_type を中黒で繋いだ横並び。狭ければ省略。 */
+.card__tagline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.card__chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.card__chip + .card__chip::before {
+  content: '·';
+  margin-right: var(--space-xs);
   color: var(--muted-soft);
 }
 
-.card__blocked-reason {
-  margin: var(--space-md) 0 0;
-  font-family: var(--font-text);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--warning);
+.card__blocked {
+  font-size: 12px;
+  line-height: 1;
 }
 
+/* Actions: 既定は非表示のオーバーレイ。hover/focus で右下に出す（デスクトップ前提）。 */
 .card__actions {
+  position: absolute;
+  right: var(--space-sm);
+  bottom: var(--space-sm);
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  margin-top: var(--space-lg);
+  gap: var(--space-xxs);
+  padding: var(--space-xxs);
+  background: var(--surface-elevated);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.card:hover .card__actions,
+.card:focus-within .card__actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ── Dialogs ─────────────────────────────────────────────────────────── */

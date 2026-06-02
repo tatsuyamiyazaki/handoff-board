@@ -13,12 +13,6 @@ import {
   type EditInput,
 } from '../api-client';
 
-const OWNER_LABEL: Record<Task['owner'], string> = {
-  human: '人間',
-  'ai-batch': 'AI(バッチ)',
-  'ai-interactive': 'AI(対話)',
-};
-
 /** 担当ドットの表示名（ADR-0004）。human は HUMAN、AI系は agent 値、未割当の AI系は AI。 */
 function assigneeLabel(task: Task): string {
   if (task.owner === 'human') return 'HUMAN';
@@ -96,53 +90,37 @@ export function Card({
 
   return (
     <article className="card" data-priority={task.priority}>
-      <span
-        className="card__assignee"
-        role="img"
-        aria-label={`担当: ${assigneeLabel(task)}`}
-        data-assignee={assigneeLabel(task)}
-      >
-        {assigneeLabel(task)}
-      </span>
+      {/* 1段目: priority・project・milestone・action_type を横詰め、担当ドットを右（ラベル無し）。 */}
+      <div className="card__meta">
+        <span className="card__priority" data-priority={task.priority}>
+          {task.priority}
+        </span>
+        <span className="card__tagline">
+          {task.project && <span className="card__chip">{task.project}</span>}
+          {task.milestone && <span className="card__chip">{task.milestone}</span>}
+          <span className="card__chip">{task.action_type.toUpperCase()}</span>
+        </span>
+        {isBlocked && (
+          <span
+            className="card__blocked"
+            role="img"
+            aria-label="ブロック中"
+            title={task.blocked_reason ?? undefined}
+          >
+            ⛔
+          </span>
+        )}
+        <span
+          className="card__assignee"
+          role="img"
+          aria-label={`担当: ${assigneeLabel(task)}`}
+          data-assignee={assigneeLabel(task)}
+        >
+          {assigneeLabel(task)}
+        </span>
+      </div>
+      {/* 2段目: タイトル。 */}
       <h3 className="card__title">{task.title}</h3>
-      <dl className="card__meta">
-        <div>
-          <dt>owner</dt>
-          <dd>{OWNER_LABEL[task.owner]}</dd>
-        </div>
-        <div>
-          <dt>priority</dt>
-          <dd className="card__priority">{task.priority}</dd>
-        </div>
-        <div>
-          <dt>type</dt>
-          <dd>{task.action_type}</dd>
-        </div>
-        {task.project && (
-          <div>
-            <dt>project</dt>
-            <dd>{task.project}</dd>
-          </div>
-        )}
-        {task.milestone && (
-          <div>
-            <dt>milestone</dt>
-            <dd>{task.milestone}</dd>
-          </div>
-        )}
-      </dl>
-      {isBlocked && task.blocked_reason && (
-        <p className="card__blocked-reason">⛔ {task.blocked_reason}</p>
-      )}
-      {task.tags.length > 0 && (
-        <ul className="card__tags">
-          {task.tags.map((tag) => (
-            <li key={tag} className="card__tag">
-              {tag}
-            </li>
-          ))}
-        </ul>
-      )}
       <div className="card__actions">
         {canStart && (
           <button

@@ -24,9 +24,11 @@ const task = (over: Partial<Task> = {}): Task => ({
 });
 
 describe('Card', () => {
-  it('blocked タスクは blocked_reason を表示する', () => {
+  it('blocked タスクは理由文ではなくブロックマーカーを表示する', () => {
     render(<Card task={task({ status: 'blocked', blocked_reason: 'API キー待ち' })} />);
-    expect(screen.getByText(/API キー待ち/)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'ブロック中' })).toBeInTheDocument();
+    // 密なカードでは理由文はカード面に出さない（解除ダイアログで確認）。
+    expect(screen.queryByText(/API キー待ち/)).not.toBeInTheDocument();
   });
 
   it('ブロック可能なタスクには「ブロック」ボタンがあり、押すとブロックダイアログが開く', () => {
