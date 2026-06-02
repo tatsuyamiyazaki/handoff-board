@@ -545,8 +545,11 @@ body {
   gap: var(--space-xs);
 }
 
-.field > label,
-.field:first-child {
+/* Field caption — the <span> label above each control. Target the span
+ * directly so every caption is consistent (the old :first-child only styled
+ * the first field in each group, leaving the rest at the body serif size). */
+.field > span,
+.field > label {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 2px;
