@@ -33,7 +33,7 @@ _Avoid_: ワーカー、ジョブ、スケジューラ単体
 _Avoid_: ユーザー、担当者（人間とAIを区別しない曖昧語）
 
 **エージェント (agent)**:
-owner が AI 系（ai-batch / ai-interactive）のとき、実際に処理する具体的なAIの識別子（chatgpt / codex / gemini / claude-code）。owner の下位概念で、human タスクでは持たない（null）。
+owner が AI 系（ai-batch / ai-interactive）のとき、実際に処理する具体的なAIの識別子（cowork / codex / gemini / claude-code）。owner の下位概念で、human タスクでは持たない（null）。
 _Avoid_: owner と混同する、自由文字列で表記ゆれさせる
 
 **プロジェクト (project)**:

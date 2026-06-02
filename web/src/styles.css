@@ -354,7 +354,7 @@ body {
 .card__assignee[data-assignee='HUMAN'] {
   color: oklch(72% 0.13 145);
 }
-.card__assignee[data-assignee='CHATGPT'] {
+.card__assignee[data-assignee='COWORK'] {
   color: oklch(70% 0.15 165);
 }
 .card__assignee[data-assignee='CODEX'] {

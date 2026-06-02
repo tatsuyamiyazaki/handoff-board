@@ -119,6 +119,16 @@ describe('validateCreateTask（agent と owner の二軸 / ADR-0004）', () => {
     const err = caught(() => validateCreateTask({ ...valid, owner: 'ai-batch', agent: 'bard' }));
     expect(err.status).toBe(422);
   });
+
+  it('cowork を有効な agent として受理する', () => {
+    const result = validateCreateTask({ ...valid, owner: 'ai-batch', agent: 'cowork' });
+    expect(result.agent).toBe('cowork');
+  });
+
+  it('削除した chatgpt はもう受理しない（422）', () => {
+    const err = caught(() => validateCreateTask({ ...valid, owner: 'ai-batch', agent: 'chatgpt' }));
+    expect(err.status).toBe(422);
+  });
 });
 
 describe('buildTask', () => {

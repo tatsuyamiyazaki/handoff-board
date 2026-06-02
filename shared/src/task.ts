@@ -13,7 +13,7 @@ export const OWNERS = ['human', 'ai-batch', 'ai-interactive'] as const;
 export type Owner = (typeof OWNERS)[number];
 
 /** owner が AI 系のとき、実際に処理する具体的なAI（ADR-0004）。human タスクは持たない。 */
-export const AGENTS = ['chatgpt', 'codex', 'gemini', 'claude-code'] as const;
+export const AGENTS = ['cowork', 'codex', 'gemini', 'claude-code'] as const;
 export type Agent = (typeof AGENTS)[number];
 
 export const PRIORITIES = ['P0', 'P1', 'P2', 'P3'] as const;
