@@ -69,8 +69,8 @@ body {
 /* ── Shell ───────────────────────────────────────────────────────────── */
 .app {
   padding: var(--space-xl) var(--space-xl) var(--space-section);
-  max-width: 1280px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 /* Top nav: MENU-style minimal bar with centered wordmark, monospace labels. */
