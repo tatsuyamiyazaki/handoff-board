@@ -23,43 +23,67 @@ const task = (over: Partial<Task> = {}): Task => ({
   ...over,
 });
 
-const LANES = ['needs-ai', 'needs-human', 'in-progress', 'done', 'blocked'];
+const LANE_LABELS = ['To Do', 'In Progress', 'Blocked', 'Done'];
 
 describe('Board', () => {
-  it('5つの status レーンをすべて表示する', () => {
+  it('4つのレーン（To Do / In Progress / Blocked / Done）を表示する', () => {
     render(<Board tasks={[]} />);
-    for (const status of LANES) {
-      expect(screen.getByRole('region', { name: status })).toBeInTheDocument();
+    for (const label of LANE_LABELS) {
+      expect(screen.getByRole('region', { name: label })).toBeInTheDocument();
     }
   });
 
-  it('タスクをその status のレーンにカードとして表示する', () => {
-    render(<Board tasks={[task({ id: 'x', title: '競合調査', status: 'in-progress' })]} />);
-    const lane = screen.getByRole('region', { name: 'in-progress' });
-    expect(within(lane).getByText('競合調査')).toBeInTheDocument();
+  it('needs-ai と needs-human を To Do レーンに統合して表示する', () => {
+    render(
+      <Board
+        tasks={[
+          task({ id: 'a', title: 'AIタスク', status: 'needs-ai' }),
+          task({ id: 'h', title: '人間タスク', status: 'needs-human' }),
+        ]}
+      />,
+    );
+    const todo = screen.getByRole('region', { name: 'To Do' });
+    expect(within(todo).getByText('AIタスク')).toBeInTheDocument();
+    expect(within(todo).getByText('人間タスク')).toBeInTheDocument();
   });
 
-  it('タスクは別レーンには現れない', () => {
-    render(<Board tasks={[task({ id: 'x', title: '競合調査', status: 'in-progress' })]} />);
-    const doneLane = screen.getByRole('region', { name: 'done' });
-    expect(within(doneLane).queryByText('競合調査')).not.toBeInTheDocument();
+  it('in-progress / blocked / done をそれぞれのレーンに表示する', () => {
+    render(
+      <Board
+        tasks={[
+          task({ id: '1', title: '進行', status: 'in-progress' }),
+          task({ id: '2', title: '停止', status: 'blocked' }),
+          task({ id: '3', title: '済', status: 'done' }),
+        ]}
+      />,
+    );
+    expect(
+      within(screen.getByRole('region', { name: 'In Progress' })).getByText('進行'),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: 'Blocked' })).getByText('停止'),
+    ).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Done' })).getByText('済')).toBeInTheDocument();
   });
 
-  it('各レーンの先頭にそのレーンの件数を表示する', () => {
+  it('タスクは属さないレーンには現れない', () => {
+    render(<Board tasks={[task({ id: 'x', title: '進行', status: 'in-progress' })]} />);
+    const doneLane = screen.getByRole('region', { name: 'Done' });
+    expect(within(doneLane).queryByText('進行')).not.toBeInTheDocument();
+  });
+
+  it('To Do の件数は needs-ai と needs-human の合計', () => {
     render(
       <Board
         tasks={[
           task({ id: '1', status: 'needs-ai' }),
-          task({ id: '2', status: 'needs-ai' }),
-          task({ id: '3', status: 'in-progress' }),
+          task({ id: '2', status: 'needs-human' }),
+          task({ id: '3', status: 'needs-ai' }),
+          task({ id: '4', status: 'in-progress' }),
         ]}
       />,
     );
-    const needsAi = screen.getByRole('region', { name: 'needs-ai' });
-    const inProgress = screen.getByRole('region', { name: 'in-progress' });
-    const done = screen.getByRole('region', { name: 'done' });
-    expect(within(needsAi).getByText('2')).toBeInTheDocument();
-    expect(within(inProgress).getByText('1')).toBeInTheDocument();
-    expect(within(done).getByText('0')).toBeInTheDocument();
+    const todo = screen.getByRole('region', { name: 'To Do' });
+    expect(within(todo).getByText('3')).toBeInTheDocument();
   });
 });

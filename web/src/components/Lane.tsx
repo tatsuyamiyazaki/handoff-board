@@ -1,16 +1,10 @@
-import type { Status, Task } from '@handoff/shared';
+import type { Task } from '@handoff/shared';
 import { Card } from './Card';
 
-const STATUS_LABEL: Record<Status, string> = {
-  'needs-ai': 'AI待ち',
-  'needs-human': '人間待ち',
-  'in-progress': '進行中',
-  done: '完了',
-  blocked: 'ブロック',
-};
-
 interface LaneProps {
-  status: Status;
+  /** 表示・アクセシブル名を兼ねるレーン名（例: "To Do"）。 */
+  label: string;
+  /** このレーンに属するタスク（複数 status を統合する場合あり、ADR-0004 のボード要件）。 */
   tasks: Task[];
   /** 遷移成功時に更新後タスクを親へ通知（Card→Lane→Board 経由）。 */
   onTransitioned?: (task: Task) => void;
@@ -20,16 +14,15 @@ interface LaneProps {
   onDeleted?: (task: Task) => void;
 }
 
-/** カンバンの縦の列。status の値と1対1（CONTEXT.md）。 */
-export function Lane({ status, tasks, onTransitioned, onArchived, onDeleted }: LaneProps) {
+/** カンバンの縦の列。1つ以上の status をまとめた表示単位。 */
+export function Lane({ label, tasks, onTransitioned, onArchived, onDeleted }: LaneProps) {
   return (
-    <section className="lane" aria-label={status} data-status={status}>
+    <section className="lane" aria-label={label}>
       <header className="lane__header">
-        <h2 className="lane__title">{STATUS_LABEL[status]}</h2>
-        <span className="lane__count" aria-label={`${status} の件数`}>
+        <h2 className="lane__title">{label}</h2>
+        <span className="lane__count" aria-label={`${label} の件数`}>
           {tasks.length}
         </span>
-        <span className="lane__status">{status}</span>
       </header>
       <ul className="lane__cards">
         {tasks.map((task) => (

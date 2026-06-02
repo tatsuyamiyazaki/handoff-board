@@ -86,8 +86,8 @@ body {
 }
 
 .app__brand {
-  grid-column: 2;
-  text-align: center;
+  grid-column: 1;
+  text-align: left;
 }
 
 .app__title {
@@ -263,7 +263,7 @@ body {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
   gap: var(--space-xl);
   align-items: start;
 }
@@ -304,11 +304,6 @@ body {
   letter-spacing: 2px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-}
-
-/* The English status key is the quiet caption beneath the title. */
-.lane__status {
-  display: none;
 }
 
 .lane__cards {

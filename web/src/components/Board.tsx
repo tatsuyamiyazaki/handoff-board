@@ -1,5 +1,18 @@
-import { STATUSES, type Status, type Task } from '@handoff/shared';
+import type { Status, Task } from '@handoff/shared';
 import { Lane } from './Lane';
+
+/** カンバンのレーン定義（ADR-0004 のボード要件）。needs-* は To Do に統合。 */
+interface LaneDef {
+  label: string;
+  statuses: Status[];
+}
+
+const LANES: LaneDef[] = [
+  { label: 'To Do', statuses: ['needs-ai', 'needs-human'] },
+  { label: 'In Progress', statuses: ['in-progress'] },
+  { label: 'Blocked', statuses: ['blocked'] },
+  { label: 'Done', statuses: ['done'] },
+];
 
 interface BoardProps {
   tasks: Task[];
@@ -11,16 +24,17 @@ interface BoardProps {
   onDeleted?: (task: Task) => void;
 }
 
-/** 5レーンのカンバン。タスクを status ごとに振り分けて表示する。 */
+/** 4レーンのカンバン。タスクをレーン定義の status 群ごとに振り分けて表示する。 */
 export function Board({ tasks, onTransitioned, onArchived, onDeleted }: BoardProps) {
-  const byStatus = (status: Status): Task[] => tasks.filter((t) => t.status === status);
+  const inLane = (lane: LaneDef): Task[] =>
+    tasks.filter((t) => lane.statuses.includes(t.status));
   return (
     <div className="board">
-      {STATUSES.map((status) => (
+      {LANES.map((lane) => (
         <Lane
-          key={status}
-          status={status}
-          tasks={byStatus(status)}
+          key={lane.label}
+          label={lane.label}
+          tasks={inLane(lane)}
           onTransitioned={onTransitioned}
           onArchived={onArchived}
           onDeleted={onDeleted}
