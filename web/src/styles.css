@@ -68,7 +68,7 @@ body {
 
 /* ── Shell ───────────────────────────────────────────────────────────── */
 .app {
-  padding: var(--space-xl) var(--space-xl) var(--space-section);
+  padding: var(--space-lg) var(--space-xl) var(--space-section);
   max-width: none;
   margin: 0;
 }
@@ -82,7 +82,7 @@ body {
   min-height: 56px;
   padding: var(--space-md) 0;
   border-bottom: 1px solid var(--hairline);
-  margin-bottom: var(--space-xxl);
+  margin-bottom: var(--space-md);
 }
 
 .app__brand {
