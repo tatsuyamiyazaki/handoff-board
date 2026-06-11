@@ -1,5 +1,7 @@
 # 07. ディスパッチャー
 
+> **廃止済み（[ADR-0005](../adr/0005-remove-dispatcher-pull-via-mcp.md)）**: このディスパッチャーは [issue 09](09-remove-dispatcher.md) で撤去された。AI 実行者は MCP 経由でタスクを pull する方式に変わったため、本 issue は実装されない。以下は歴史的記録として残す。
+
 Type: AFK ／ Source: [docs/prd.md](../prd.md)（Stories 21, 24, 25, 26, 27, 28）
 
 ## What to build

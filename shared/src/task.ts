@@ -9,12 +9,60 @@ export const STATUSES = [
 ] as const;
 export type Status = (typeof STATUSES)[number];
 
-export const OWNERS = ['human', 'ai-batch', 'ai-interactive'] as const;
+/**
+ * タスクの担当主体（ADR-0006）。具体AI（cowork / claude-code）を owner に昇格させた。
+ * human はレーン分け・遷移の routing 軸、AI 系は「どのAIが MCP 経由で pull するか」も兼ねる。
+ */
+export const OWNERS = ['human', 'cowork', 'claude-code'] as const;
 export type Owner = (typeof OWNERS)[number];
 
-/** owner が AI 系のとき、実際に処理する具体的なAI（ADR-0004）。human タスクは持たない。 */
-export const AGENTS = ['cowork', 'codex', 'gemini', 'claude-code'] as const;
-export type Agent = (typeof AGENTS)[number];
+/** owner が AI 系か（human 以外）。department/role を持てる前提条件。 */
+export function isAiOwner(owner: Owner): boolean {
+  return owner !== 'human';
+}
+
+/** AI部署（ADR-0006）。owner が AI 系のときのみ持てる組織軸。human タスクは null。 */
+export const DEPARTMENTS = ['engineering', 'contents', 'business', 'infrastructure'] as const;
+export type Department = (typeof DEPARTMENTS)[number];
+
+/** AI部署ごとのロール一覧（ADR-0006）。role は必ずこのいずれかの部署リストに属する。 */
+export const DEPARTMENT_ROLES = {
+  engineering: [
+    'tech-lead',
+    'nightly-qa',
+    'task-dispatcher',
+    'eng-director',
+    'debug',
+    'code-review',
+    'architecture',
+    'system-design',
+    'testing-strategy',
+    'tech-debt',
+    'documentation',
+    'deploy-checklist',
+    'incident-response',
+    'standup',
+  ],
+  contents: ['content-director', 'brand-voice', 'uradorino', 'root-cause', 'anti-ai-slop'],
+  business: ['partnership-manager', 'business-strategy', 'meeting-director', 'legal-review'],
+  infrastructure: [
+    'local-support-agent',
+    'daily-task-dispatch',
+    'morning-standup',
+    'weekly-knowledge-sync',
+  ],
+} as const satisfies Record<Department, readonly string[]>;
+
+/** ロール（ADR-0006）。department 配下の役割ラベル。owner が AI 系のときのみ持てる。 */
+export type Role = (typeof DEPARTMENT_ROLES)[Department][number];
+
+/** 全ロールの平坦な一覧（部署をまたいだ重複なし前提）。 */
+export const ROLES: readonly Role[] = Object.values(DEPARTMENT_ROLES).flat();
+
+/** 指定部署に属するロール一覧を返す（UI の連動ドロップダウン用）。 */
+export function rolesForDepartment(department: Department): readonly Role[] {
+  return DEPARTMENT_ROLES[department];
+}
 
 export const PRIORITIES = ['P0', 'P1', 'P2', 'P3'] as const;
 export type Priority = (typeof PRIORITIES)[number];
@@ -50,8 +98,10 @@ export interface Task {
   /** blocked 時のみ理由文字列、それ以外は null。 */
   blocked_reason: string | null;
   tags: string[];
-  /** owner が AI 系のときの具体的な担当AI。human タスク・未割当は null（ADR-0004）。 */
-  agent: Agent | null;
+  /** AI部署。owner が AI 系のときのみ非 null（ADR-0006）。human タスク・未設定は null。 */
+  department: Department | null;
+  /** ロール。department 配下の役割。department が非 null かつ未割当でないときのみ非 null（ADR-0006）。 */
+  role: Role | null;
   /** 所属プロジェクトの任意ラベル。未設定は null。 */
   project: string | null;
   /** 紐づくマイルストーンの任意ラベル。未設定は null。 */

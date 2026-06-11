@@ -3,16 +3,19 @@ import {
   OWNERS,
   PRIORITIES,
   ACTION_TYPES,
+  isAiOwner,
   validateEditTask,
   type Task,
   type Owner,
   type Priority,
   type ActionType,
-  type Agent,
+  type Department,
+  type Role,
 } from '@handoff/shared';
 import { editTask as defaultEditTask, type EditInput } from '../api-client';
 import { useLabelOptions } from '../lib/label-options';
-import { AgentField } from './AgentField';
+import { DepartmentField } from './DepartmentField';
+import { RoleField } from './RoleField';
 import { Icon } from './icons';
 
 interface EditDialogProps {
@@ -38,13 +41,28 @@ export function EditDialog({
   const [tagsText, setTagsText] = useState(task.tags.join(', '));
   const [project, setProject] = useState(task.project ?? '');
   const [milestone, setMilestone] = useState(task.milestone ?? '');
-  const [agent, setAgent] = useState<Agent | ''>(task.agent ?? '');
+  const [department, setDepartment] = useState<Department | ''>(task.department ?? '');
+  const [role, setRole] = useState<Role | ''>(task.role ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { projects, milestones } = useLabelOptions();
 
-  // ADR-0004: owner=human は agent を持てない。AI 系のときだけ担当 AI を編集できる。
-  const isAiOwner = owner !== 'human';
+  const aiOwner = isAiOwner(owner);
+
+  // owner を human にしたら AI 系メタデータ（department/role）をクリアする（ADR-0006 カスケード）。
+  function handleOwnerChange(next: Owner): void {
+    setOwner(next);
+    if (!isAiOwner(next)) {
+      setDepartment('');
+      setRole('');
+    }
+  }
+
+  // department を変えたら role をリセットする（部署に属さない role を残さない）。
+  function handleDepartmentChange(next: Department | ''): void {
+    setDepartment(next);
+    setRole('');
+  }
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -61,8 +79,10 @@ export function EditDialog({
       tags,
       project,
       milestone,
-      // human のとき agent は必ず null（ADR-0004 不変条件）。AI 系で未選択も null。
-      agent: isAiOwner && agent !== '' ? agent : null,
+      // human のとき department は必ず null（ADR-0006 不変条件）。AI 系で未選択も null。
+      department: aiOwner && department !== '' ? department : null,
+      // role は department が選ばれているときのみ。未選択は null。
+      role: aiOwner && department !== '' && role !== '' ? role : null,
     };
 
     try {
@@ -108,7 +128,7 @@ export function EditDialog({
 
         <label className="field">
           <span>担当</span>
-          <select value={owner} onChange={(e) => setOwner(e.target.value as Owner)}>
+          <select value={owner} onChange={(e) => handleOwnerChange(e.target.value as Owner)}>
             {OWNERS.map((o) => (
               <option key={o} value={o}>
                 {o}
@@ -116,6 +136,11 @@ export function EditDialog({
             ))}
           </select>
         </label>
+
+        {aiOwner && <DepartmentField value={department} onChange={handleDepartmentChange} />}
+        {aiOwner && department !== '' && (
+          <RoleField department={department} value={role} onChange={setRole} />
+        )}
 
         <label className="field">
           <span>優先度</span>
@@ -141,8 +166,6 @@ export function EditDialog({
             ))}
           </select>
         </label>
-
-        {isAiOwner && <AgentField value={agent} onChange={setAgent} />}
 
         <label className="field">
           <span>プロジェクト</span>

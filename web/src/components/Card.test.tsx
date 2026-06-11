@@ -7,12 +7,13 @@ const task = (over: Partial<Task> = {}): Task => ({
   id: 't1',
   title: 'サンプル',
   status: 'in-progress',
-  owner: 'ai-batch',
+  owner: 'cowork',
   priority: 'P2',
   action_type: 'other',
   handoff_note: '',
   blocked_reason: null,
-  agent: null,
+  department: null,
+  role: null,
   project: null,
   milestone: null,
   tags: [],
@@ -125,19 +126,19 @@ describe('Card', () => {
     expect(screen.getByRole('alertdialog', { name: 'タスクを削除' })).toBeInTheDocument();
   });
 
-  it('AI 系 owner で agent 指定時、担当ドットに agent 値を表示する（ADR-0004）', () => {
-    render(<Card task={task({ owner: 'ai-batch', agent: 'codex' })} />);
-    expect(screen.getByRole('img', { name: '担当: CODEX' })).toBeInTheDocument();
+  it('owner=cowork の担当ドットは COWORK（ADR-0006）', () => {
+    render(<Card task={task({ owner: 'cowork' })} />);
+    expect(screen.getByRole('img', { name: '担当: COWORK' })).toBeInTheDocument();
   });
 
-  it('owner=human の担当ドットは HUMAN（agent は持たない）', () => {
-    render(<Card task={task({ owner: 'human', agent: null })} />);
+  it('owner=claude-code の担当ドットは CLAUDE-CODE', () => {
+    render(<Card task={task({ owner: 'claude-code' })} />);
+    expect(screen.getByRole('img', { name: '担当: CLAUDE-CODE' })).toBeInTheDocument();
+  });
+
+  it('owner=human の担当ドットは HUMAN', () => {
+    render(<Card task={task({ owner: 'human' })} />);
     expect(screen.getByRole('img', { name: '担当: HUMAN' })).toBeInTheDocument();
-  });
-
-  it('AI 系 owner で agent 未割当時は担当ドットを AI にフォールバックする', () => {
-    render(<Card task={task({ owner: 'ai-batch', agent: null })} />);
-    expect(screen.getByRole('img', { name: '担当: AI' })).toBeInTheDocument();
   });
 
   it('project / milestone があればカードに表示する（ADR-0004）', () => {
@@ -150,5 +151,27 @@ describe('Card', () => {
     render(<Card task={task({ project: null, milestone: null })} />);
     expect(screen.queryByText('プロジェクト')).not.toBeInTheDocument();
     expect(screen.queryByText('マイルストーン')).not.toBeInTheDocument();
+  });
+
+  it('department があれば部署チップを部署別の色（data-department）で表示する（ADR-0006）', () => {
+    render(<Card task={task({ owner: 'cowork', department: 'engineering' })} />);
+    const chip = screen.getByText('engineering');
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveAttribute('data-department', 'engineering');
+  });
+
+  it('department が null のときは部署チップを表示しない', () => {
+    render(<Card task={task({ owner: 'human', department: null })} />);
+    expect(screen.queryByText('engineering')).not.toBeInTheDocument();
+  });
+
+  it('role があればロールチップを常時表示する（ADR-0006）', () => {
+    render(<Card task={task({ owner: 'cowork', department: 'engineering', role: 'code-review' })} />);
+    expect(screen.getByText('code-review')).toBeInTheDocument();
+  });
+
+  it('role が null のときはロールチップを表示しない', () => {
+    render(<Card task={task({ owner: 'cowork', department: 'engineering', role: null })} />);
+    expect(screen.queryByText('code-review')).not.toBeInTheDocument();
   });
 });

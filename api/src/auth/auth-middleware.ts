@@ -1,7 +1,7 @@
 // リクエストヘッダー → {actor, type} を解決する認証ロジック（ADR-0001 デュアル認証）。
 // 機械系（X-Board-Token）と人間（Firebase Bearer ID トークン + 許可リスト）の2系統。
 
-/** token 文字列 → actor 種別（例 'ai-batch'）のマップ。BOARD_TOKENS 由来。 */
+/** token 文字列 → actor 種別（例 'cowork'）のマップ。BOARD_TOKENS 由来。 */
 export type BoardTokenMap = Record<string, string>;
 
 /**

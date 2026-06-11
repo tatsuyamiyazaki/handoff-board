@@ -9,12 +9,12 @@
 
 ## これは何か
 
-タスクごとに「いま誰が担当か（owner）」を **人間 / AI（バッチ）/ AI（対話）** で表し、AI 系のときは具体的な担当 AI（agent）を併せて持つ。タスクはレーン間を遷移し、完了後はアーカイブされる。人間は Web からサインインして自分のボードを操作し、AI/機械系はトークン認証で同じボードを読み書きする — この「人間と AI のあいだの受け渡し」を一望できるのが狙い。
+タスクごとに「いま誰が担当か（owner）」を **人間 / Cowork / Claude Code** で表し、AI 系のときは AI部署（department）と役割（role）を併せて持つ。タスクはレーン間を遷移し、完了後はアーカイブされる。人間は Web からサインインして自分のボードを操作し、AI/機械系はトークン認証で同じボードを読み書きする — この「人間と AI のあいだの受け渡し」を一望できるのが狙い。
 
 ## 主な機能
 
 - **4レーンのカンバン**: `To Do`（AI待ち＋人間待ちを統合）/ `In Progress` / `Blocked` / `Done`
-- **owner と agent の二軸**（[ADR-0004](docs/adr/0004-owner-and-agent-as-two-axes.md)）: owner=ルーティング軸、agent=具体 AI（`cowork` / `codex` / `gemini` / `claude-code`）。カードは担当ドットで表示
+- **owner / AI部署 / ロールの三軸**（[ADR-0006](docs/adr/0006-owner-department-role-three-axes.md)、ADR-0004 を supersede）: owner=実行者（`human` / `cowork` / `claude-code`）、AI 系はさらに department と role を持つ。カードは担当ドット＋部署色チップ＋ロールチップで表示
 - **サーバ側の遷移ステートマシン**（[ADR-0002](docs/adr/0002-status-transitions-as-server-state-machine.md)）: 着手 / 引き継ぎ / 完了 / ブロック / 解除を不正遷移なく制御
 - **密な2段カード**: 優先度（P0–P3）を左端の色帯で表現、ホバーでアクション表示
 - **サマリ＋フィルタ**: 人間アサイン / 進行中 / ブロック数の集計、プロジェクト / オーナー / マイルストーンで絞り込み
@@ -28,7 +28,8 @@
 - **shared** (`@handoff/shared`): `Task` スキーマと enum、API エンベロープ、作成/編集のドメインロジックの単一ソース（ビルド無し・src 直接参照）
 - **api** (`@handoff/api`): Fastify + Firebase Admin SDK。リポジトリ層は `InMemoryTaskRepository`（dev/テスト）/ `FirestoreTaskRepository`（本番）
 - **web** (`@handoff/web`): Vite + React SPA。状態は TanStack Query、認証は Firebase Auth
-- **dispatcher** (`@handoff/dispatcher`): AI 系タスクを拾うローカルバッチ（プレースホルダ、未実装）
+
+AI 実行者（Cowork / Claude Code）はローカルから handoff-mcp（MCPサーバー、別リポジトリ）経由でタスクを pull する。サーバー側 push バッチのディスパッチャーは廃止した（[ADR-0005](docs/adr/0005-remove-dispatcher-pull-via-mcp.md)）。
 
 ESM 統一、`tsconfig` は `moduleResolution: Bundler` + `verbatimModuleSyntax`。pnpm ワークスペース。
 
@@ -37,8 +38,9 @@ ESM 統一、`tsconfig` は `moduleResolution: Bundler` + `verbatimModuleSyntax`
 | 概念 | 値 |
 |---|---|
 | status | `needs-ai` / `needs-human` / `in-progress` / `done` / `blocked` |
-| owner（ルーティング軸） | `human` / `ai-batch` / `ai-interactive` |
-| agent（具体 AI、owner が AI 系のみ） | `cowork` / `codex` / `gemini` / `claude-code` |
+| owner（実行者） | `human` / `cowork` / `claude-code` |
+| department（AI部署、owner が AI 系のみ） | `engineering` / `contents` / `business` / `infrastructure` |
+| role（ロール、department 配下） | 部署ごとの固定リスト（[ADR-0006](docs/adr/0006-owner-department-role-three-axes.md)） |
 | priority | `P0`（即時）/ `P1`（本日中）/ `P2`（今週中）/ `P3`（いつでも） |
 
 用語の正確な定義は [CONTEXT.md](CONTEXT.md)、設計判断は [docs/adr/](docs/adr/) を参照。

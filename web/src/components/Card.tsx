@@ -13,10 +13,9 @@ import {
   type EditInput,
 } from '../api-client';
 
-/** 担当ドットの表示名（ADR-0004）。human は HUMAN、AI系は agent 値、未割当の AI系は AI。 */
+/** 担当ドットの表示名（ADR-0006）。owner をそのまま大文字表示（HUMAN / COWORK / CLAUDE-CODE）。 */
 function assigneeLabel(task: Task): string {
-  if (task.owner === 'human') return 'HUMAN';
-  return task.agent ? task.agent.toUpperCase() : 'AI';
+  return task.owner.toUpperCase();
 }
 
 interface CardProps {
@@ -96,6 +95,12 @@ export function Card({
           {task.priority}
         </span>
         <span className="card__tagline">
+          {task.department && (
+            <span className="card__chip card__chip--department" data-department={task.department}>
+              {task.department}
+            </span>
+          )}
+          {task.role && <span className="card__chip card__chip--role">{task.role}</span>}
           {task.project && <span className="card__chip">{task.project}</span>}
           {task.milestone && <span className="card__chip">{task.milestone}</span>}
           <span className="card__chip">{task.action_type.toUpperCase()}</span>

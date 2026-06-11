@@ -8,12 +8,13 @@ const task = (over: Partial<Task> = {}): Task => ({
   id: 't1',
   title: 'サンプル',
   status: 'needs-ai',
-  owner: 'ai-batch',
+  owner: 'cowork',
   priority: 'P2',
   action_type: 'other',
   handoff_note: '',
   blocked_reason: null,
-  agent: null,
+  department: null,
+  role: null,
   project: null,
   milestone: null,
   tags: [],
@@ -24,7 +25,7 @@ const task = (over: Partial<Task> = {}): Task => ({
   ...over,
 });
 
-const allFilter: BoardFilter = { owner: ALL, project: ALL, milestone: ALL };
+const allFilter: BoardFilter = { owner: ALL, department: ALL, project: ALL, milestone: ALL };
 
 describe('BoardControls', () => {
   it('サマリに人間アサイン・進行中・ブロックの件数を表示する', () => {
@@ -32,8 +33,8 @@ describe('BoardControls', () => {
       <BoardControls
         tasks={[
           task({ id: '1', owner: 'human', status: 'needs-human' }),
-          task({ id: '2', owner: 'ai-batch', status: 'in-progress' }),
-          task({ id: '3', owner: 'ai-batch', status: 'blocked' }),
+          task({ id: '2', owner: 'cowork', status: 'in-progress' }),
+          task({ id: '3', owner: 'cowork', status: 'blocked' }),
         ]}
         filter={allFilter}
         onFilterChange={() => {}}

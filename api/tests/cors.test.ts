@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadCorsOrigins } from '../src/config.js';
 import { InMemoryTaskRepository } from '../src/repository/in-memory-task-repository.js';
 
-const boardTokens = { 'dev-token': 'ai-batch' };
+const boardTokens = { 'dev-token': 'cowork' };
 const ORIGIN = 'http://localhost:5173';
 
 describe('CORS', () => {

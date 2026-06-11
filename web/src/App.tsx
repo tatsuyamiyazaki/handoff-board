@@ -22,6 +22,7 @@ export function App() {
   const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState<BoardFilter>({
     owner: ALL,
+    department: ALL,
     project: ALL,
     milestone: ALL,
   });

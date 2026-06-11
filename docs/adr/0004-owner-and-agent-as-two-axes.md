@@ -2,7 +2,7 @@
 
 ## Status
 
-accepted
+superseded by [ADR-0006](0006-owner-department-role-three-axes.md)（ディスパッチャー廃止 = [ADR-0005](0005-remove-dispatcher-pull-via-mcp.md) により却下理由の前提が消滅したため）
 
 ## 決定
 

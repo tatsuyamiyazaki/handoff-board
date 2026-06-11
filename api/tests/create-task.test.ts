@@ -3,7 +3,7 @@ import { validateCreateTask, buildTask, ValidationError } from '@handoff/shared'
 
 const valid = {
   title: '記事を書く',
-  owner: 'ai-batch',
+  owner: 'cowork',
   handoff_note: '下書きお願いします',
   status: 'needs-ai',
 };
@@ -22,7 +22,7 @@ describe('validateCreateTask（必須・制約）', () => {
     const result = validateCreateTask(valid);
     expect(result).toMatchObject({
       title: '記事を書く',
-      owner: 'ai-batch',
+      owner: 'cowork',
       handoff_note: '下書きお願いします',
       status: 'needs-ai',
     });
@@ -83,11 +83,88 @@ describe('validateCreateTask（既定値）', () => {
     expect(err.status).toBe(422);
   });
 
-  it('agent/project/milestone 省略時は null を既定値にする', () => {
+  it('project/milestone 省略時は null を既定値にする', () => {
     const result = validateCreateTask(valid);
-    expect(result.agent).toBeNull();
     expect(result.project).toBeNull();
     expect(result.milestone).toBeNull();
+  });
+
+  it('department 省略時は null を既定値にする', () => {
+    expect(validateCreateTask(valid).department).toBeNull();
+  });
+});
+
+describe('validateCreateTask（AI部署 / ADR-0006）', () => {
+  it('AI 系 owner では有効な department を受理する', () => {
+    expect(validateCreateTask({ ...valid, owner: 'cowork', department: 'engineering' }).department).toBe(
+      'engineering',
+    );
+  });
+
+  it('owner=human で department を指定すると 422', () => {
+    const err = caught(() =>
+      validateCreateTask({
+        ...valid,
+        owner: 'human',
+        status: 'needs-human',
+        department: 'engineering',
+      }),
+    );
+    expect(err.status).toBe(422);
+  });
+
+  it('不正な department 値は 422', () => {
+    const err = caught(() =>
+      validateCreateTask({ ...valid, owner: 'cowork', department: 'marketing' }),
+    );
+    expect(err.status).toBe(422);
+  });
+
+  it('department 省略時の role 既定値は null', () => {
+    expect(validateCreateTask({ ...valid, owner: 'cowork' }).role).toBeNull();
+  });
+});
+
+describe('validateCreateTask（ロール / ADR-0006）', () => {
+  it('department に属する role を受理する', () => {
+    const result = validateCreateTask({
+      ...valid,
+      owner: 'cowork',
+      department: 'engineering',
+      role: 'code-review',
+    });
+    expect(result.role).toBe('code-review');
+  });
+
+  it('department に属さない role は 422', () => {
+    const err = caught(() =>
+      validateCreateTask({
+        ...valid,
+        owner: 'cowork',
+        department: 'engineering',
+        role: 'brand-voice',
+      }),
+    );
+    expect(err.status).toBe(422);
+  });
+
+  it('department 未指定で role を指定すると 422', () => {
+    const err = caught(() =>
+      validateCreateTask({ ...valid, owner: 'cowork', role: 'code-review' }),
+    );
+    expect(err.status).toBe(422);
+  });
+
+  it('owner=human で role を指定すると 422', () => {
+    const err = caught(() =>
+      validateCreateTask({
+        ...valid,
+        owner: 'human',
+        status: 'needs-human',
+        role: 'code-review',
+      }),
+    );
+    expect(err.status).toBe(422);
   });
 
   it('空文字の project/milestone は null に正規化する', () => {
@@ -97,70 +174,34 @@ describe('validateCreateTask（既定値）', () => {
   });
 });
 
-describe('validateCreateTask（agent と owner の二軸 / ADR-0004）', () => {
-  it('AI 系 owner では有効な agent を受理する', () => {
-    const result = validateCreateTask({ ...valid, owner: 'ai-batch', agent: 'codex' });
-    expect(result.agent).toBe('codex');
-  });
-
-  it('owner=human で agent を指定すると 422', () => {
-    const err = caught(() =>
-      validateCreateTask({
-        ...valid,
-        owner: 'human',
-        status: 'needs-human',
-        agent: 'codex',
-      }),
-    );
-    expect(err.status).toBe(422);
-  });
-
-  it('不正な agent 値は 422', () => {
-    const err = caught(() => validateCreateTask({ ...valid, owner: 'ai-batch', agent: 'bard' }));
-    expect(err.status).toBe(422);
-  });
-
-  it('cowork を有効な agent として受理する', () => {
-    const result = validateCreateTask({ ...valid, owner: 'ai-batch', agent: 'cowork' });
-    expect(result.agent).toBe('cowork');
-  });
-
-  it('削除した chatgpt はもう受理しない（422）', () => {
-    const err = caught(() => validateCreateTask({ ...valid, owner: 'ai-batch', agent: 'chatgpt' }));
-    expect(err.status).toBe(422);
-  });
-});
-
 describe('buildTask', () => {
   it('created_at/updated_at と created の activity を付与する', () => {
     const normalized = validateCreateTask(valid);
     const task = buildTask(normalized, {
       id: () => 'task-1',
       now: () => '2026-06-01T00:00:00.000Z',
-      actor: 'ai-batch',
+      actor: 'cowork',
     });
     expect(task.id).toBe('task-1');
     expect(task.created_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.updated_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.blocked_reason).toBeNull();
     expect(task.activity).toEqual([
-      { timestamp: '2026-06-01T00:00:00.000Z', actor: 'ai-batch', action: 'created' },
+      { timestamp: '2026-06-01T00:00:00.000Z', actor: 'cowork', action: 'created' },
     ]);
   });
 
-  it('agent/project/milestone を Task に刻む', () => {
+  it('project/milestone を Task に刻む', () => {
     const normalized = validateCreateTask({
       ...valid,
-      agent: 'codex',
       project: 'AIRFLOW',
       milestone: 'v3',
     });
     const task = buildTask(normalized, {
       id: () => 'task-1',
       now: () => '2026-06-01T00:00:00.000Z',
-      actor: 'ai-batch',
+      actor: 'cowork',
     });
-    expect(task.agent).toBe('codex');
     expect(task.project).toBe('AIRFLOW');
     expect(task.milestone).toBe('v3');
   });

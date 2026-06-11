@@ -1,5 +1,7 @@
 # PRD: HANDOFF カンバンアプリ
 
+> **注記（2026-06 更新）**: 本 PRD は計画時点の記録である。その後、ディスパッチャー（サーバー側 push バッチ）は廃止され、AI 実行者は MCP 経由でタスクを pull する方式に変わった（[ADR-0005](./adr/0005-remove-dispatcher-pull-via-mcp.md)）。担当モデルも owner（human / cowork / claude-code）/ AI部署 / ロールの三軸に再設計された（[ADR-0006](./adr/0006-owner-department-role-three-axes.md)）。以下の本文に残る「ディスパッチャー」「ai-batch / ai-interactive」「dispatcher-lock」「72時間ルール」の記述は歴史的経緯であり、現行仕様ではない。
+>
 > 対象: `docs/specs/requirement.md` の HANDOFF バックエンド仕様に、人間が操作するカンバンWeb UIを足したフルスタック実装。
 > 関連: [ADR-0001 デュアル認証](./adr/0001-dual-auth-machine-token-and-human-firebase.md) / [ADR-0002 status遷移ステートマシン](./adr/0002-status-transitions-as-server-state-machine.md) / 用語は [CONTEXT.md](../CONTEXT.md) に従う。
 

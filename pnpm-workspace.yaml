@@ -2,4 +2,3 @@ packages:
   - 'shared'
   - 'api'
   - 'web'
-  - 'dispatcher'

@@ -46,7 +46,7 @@
 | `CORS_ORIGIN` | `https://handoff-dashboard.web.app,https://handoff-dashboard.firebaseapp.com` | 平文 env |
 | `ALLOWED_EMAILS` | 人間ログインの許可メール（例: `tatsuya.miyazaki@gmail.com`） | 平文 env |
 | `ALLOWED_EMAIL_DOMAINS` | 許可ドメイン（例: `sunbit.co.jp`） | 平文 env |
-| `BOARD_TOKENS` | 機械系トークン→actor の JSON | **Secret Manager**（`handoff-board-tokens:latest`） |
+| `BOARD_TOKENS` | 機械系トークン→actor の JSON。AI 実行者ごとに分離（例 `{"<cowork-token>":"cowork","<claude-code-token>":"claude-code"}`、ADR-0006） | **Secret Manager**（`handoff-board-tokens:latest`） |
 | `PORT` | Cloud Run が自動注入（8080） | Cloud Run |
 
 - **`GOOGLE_APPLICATION_CREDENTIALS` は Cloud Run に設定しない**。ランタイムはメタデータ ADC（ランタイム SA）で Firestore に接続する。
@@ -73,6 +73,24 @@ pnpm --filter @handoff/web build
 firebase deploy --only hosting --project handoff-dashboard
 ```
 - `firebase.json` の `hosting`（`public: web/dist`、SPA リライト）を使用。
+
+## 三軸モデルのロールアウト（ロックステップ必須・ADR-0006）
+
+owner/department/role の三軸モデルは enum を **3 箇所に複製**している（handoff-board `shared`、handoff-mcp `handoff-types.ts`、本番 Firestore のデータ）。**API・web・handoff-mcp を同時に切り替えること。** API だけ先にデプロイすると、旧 enum を載せた handoff-mcp からのタスク作成が即 422 で壊れる。
+
+切り替え手順:
+
+1. **トークン分離**: `handoff-board-tokens` Secret に AI 実行者ごとのトークンを入れた JSON を新バージョンとして登録する（例 `{"<cowork-token>":"cowork","<claude-code-token>":"claude-code"}`）。旧トークンは無効化する。
+   ```
+   # 新しい JSON を Secret の新バージョンに（PowerShell は echo 相当を避け、ファイル経由が安全）
+   gcloud secrets versions add handoff-board-tokens --data-file=<tokens.json> --project handoff-dashboard
+   ```
+2. **API 再デプロイ**: 下記「再デプロイ手順」。`--set-secrets BOARD_TOKENS=handoff-board-tokens:latest` で最新版を参照する。
+3. **web 再デプロイ**: 下記「Web」。三軸 UI（部署色チップ・ロールチップ・部署フィルタ）を含む。
+4. **handoff-mcp 更新**: 別リポジトリ（`handoff-mcp`）を `npm run build` し直し、各クライアント設定（`.claude.json` 等）の `HANDOFF_BOARD_TOKEN` を実行者に対応する新トークンへ差し替える（Cowork 用設定＝cowork トークン、Claude Code 用設定＝claude-code トークン）。
+5. **検証**: MCP 経由で department/role 付きタスクを作成し 201、本番カンバンでドット・部署色チップ・ロールチップ・部署フィルタが動くこと、activity の actor が実行者ごとに分かれることを確認する。
+
+本番 Firestore（`board` / `archive`）が空のあいだに切り替えればデータ移行は不要。既存ドキュメントがある場合は `owner` の旧値（`ai-batch`/`ai-interactive`）と `agent` フィールドのバックフィル（→ `cowork`/`claude-code` と `department`/`role`）が必要になる。
 
 ## ローカル開発 vs 本番の差分（重要）
 

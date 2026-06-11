@@ -5,13 +5,14 @@ const baseTask = (over: Partial<Task> = {}): Task => ({
   id: 't1',
   title: '元タイトル',
   status: 'in-progress',
-  owner: 'ai-batch',
+  owner: 'cowork',
   priority: 'P2',
   action_type: 'other',
   handoff_note: '元メモ',
   blocked_reason: null,
   tags: ['old'],
-  agent: null,
+  department: null,
+  role: null,
   project: null,
   milestone: null,
   created_by: 'creator@example.com',
@@ -33,13 +34,6 @@ const valid = {
 describe('validateEditTask', () => {
   it('有効入力を正規化して返す', () => {
     expect(validateEditTask(valid)).toMatchObject(valid);
-  });
-
-  it('AI 系 owner では有効な agent を受理し、owner=human で agent 指定は 422（ADR-0004）', () => {
-    expect(validateEditTask({ ...valid, owner: 'ai-batch', agent: 'gemini' }).agent).toBe('gemini');
-    expect(() => validateEditTask({ ...valid, owner: 'human', agent: 'gemini' })).toThrow(
-      ValidationError,
-    );
   });
 
   it('priority/action_type/tags 省略時は既定値（P2/other/[]）', () => {
@@ -86,16 +80,14 @@ describe('applyEdit', () => {
     });
   });
 
-  it('agent/project/milestone を更新する', () => {
+  it('project/milestone を更新する', () => {
     const normalized = validateEditTask({
       ...valid,
-      owner: 'ai-batch',
-      agent: 'codex',
+      owner: 'cowork',
       project: 'AIRFLOW',
       milestone: 'v3',
     });
     const edited = applyEdit(baseTask(), normalized, deps);
-    expect(edited.agent).toBe('codex');
     expect(edited.project).toBe('AIRFLOW');
     expect(edited.milestone).toBe('v3');
   });

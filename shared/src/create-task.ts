@@ -5,12 +5,15 @@ import {
   OWNERS,
   PRIORITIES,
   ACTION_TYPES,
-  AGENTS,
+  DEPARTMENTS,
+  DEPARTMENT_ROLES,
+  isAiOwner,
   type Task,
   type Owner,
   type Priority,
   type ActionType,
-  type Agent,
+  type Department,
+  type Role,
 } from './task.js';
 
 /** 入力検証の失敗。HTTP 422 に対応。 */
@@ -35,7 +38,8 @@ export interface NormalizedCreate {
   priority: Priority;
   action_type: ActionType;
   tags: string[];
-  agent: Agent | null;
+  department: Department | null;
+  role: Role | null;
   project: string | null;
   milestone: string | null;
 }
@@ -54,6 +58,36 @@ function requireNonEmptyString(value: unknown, field: string): string {
   return value;
 }
 
+/**
+ * department の正規化（ADR-0006）。owner=human のときは持てない（指定で 422）。
+ * AI 系 owner のときのみ有効な Department を許可し、未指定は null。
+ */
+export function normalizeDepartment(value: unknown, owner: Owner): Department | null {
+  if (value === undefined || value === null) return null;
+  if (!isAiOwner(owner)) {
+    throw new ValidationError('department must be null when owner is human');
+  }
+  if (!DEPARTMENTS.includes(value as Department)) {
+    throw new ValidationError('department must be a valid department');
+  }
+  return value as Department;
+}
+
+/**
+ * role の正規化（ADR-0006）。未指定は null。
+ * 非 null のときは department が非 null かつ role がその部署のリストに属することを要求（違反は 422）。
+ */
+export function normalizeRole(value: unknown, department: Department | null): Role | null {
+  if (value === undefined || value === null) return null;
+  if (department === null) {
+    throw new ValidationError('role requires a department');
+  }
+  if (!(DEPARTMENT_ROLES[department] as readonly string[]).includes(value as string)) {
+    throw new ValidationError('role must belong to the selected department');
+  }
+  return value as Role;
+}
+
 /** 任意文字列フィールド（project/milestone）の正規化。空白のみ・未指定は null（trim 済みを返す）。 */
 export function normalizeOptionalString(value: unknown, field: string): string | null {
   if (value === undefined || value === null) return null;
@@ -62,21 +96,6 @@ export function normalizeOptionalString(value: unknown, field: string): string |
   }
   const trimmed = value.trim();
   return trimmed.length === 0 ? null : trimmed;
-}
-
-/**
- * agent の正規化（ADR-0004）。owner=human のときは agent を持てない（指定で 422）。
- * AI 系 owner のときのみ有効な Agent を許可し、未指定は null。
- */
-export function normalizeAgent(value: unknown, owner: Owner): Agent | null {
-  if (value === undefined || value === null) return null;
-  if (owner === 'human') {
-    throw new ValidationError('agent must be null when owner is human');
-  }
-  if (!AGENTS.includes(value as Agent)) {
-    throw new ValidationError('agent must be a valid agent');
-  }
-  return value as Agent;
 }
 
 /**
@@ -120,11 +139,12 @@ export function validateCreateTask(input: unknown): NormalizedCreate {
     throw new ValidationError('tags must be an array of strings');
   }
 
-  const agent = normalizeAgent(body.agent, owner);
+  const department = normalizeDepartment(body.department, owner);
+  const role = normalizeRole(body.role, department);
   const project = normalizeOptionalString(body.project, 'project');
   const milestone = normalizeOptionalString(body.milestone, 'milestone');
 
-  return { title, owner, handoff_note, status, priority, action_type, tags, agent, project, milestone };
+  return { title, owner, handoff_note, status, priority, action_type, tags, department, role, project, milestone };
 }
 
 /** buildTask の副作用（ID・時刻・操作主体）を注入する依存。 */
@@ -147,7 +167,8 @@ export function buildTask(normalized: NormalizedCreate, deps: BuildTaskDeps): Ta
     handoff_note: normalized.handoff_note,
     blocked_reason: null,
     tags: normalized.tags,
-    agent: normalized.agent,
+    department: normalized.department,
+    role: normalized.role,
     project: normalized.project,
     milestone: normalized.milestone,
     created_by: deps.actor,

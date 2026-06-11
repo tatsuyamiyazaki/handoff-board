@@ -5,7 +5,7 @@ import { buildApp } from '../src/app.js';
 import type { TokenVerifier } from '../src/auth/auth-middleware.js';
 import { InMemoryTaskRepository } from '../src/repository/in-memory-task-repository.js';
 
-const boardTokens = { 'dev-token': 'ai-batch' };
+const boardTokens = { 'dev-token': 'cowork' };
 
 function fakeVerifier(tokenToEmail: Record<string, string>): TokenVerifier {
   return {
@@ -21,12 +21,13 @@ const sampleTask = (over: Partial<Task> = {}): Task => ({
   id: 't1',
   title: 'サンプル',
   status: 'needs-ai',
-  owner: 'ai-batch',
+  owner: 'cowork',
   priority: 'P2',
   action_type: 'other',
   handoff_note: 'お願いします',
   blocked_reason: null,
-  agent: null,
+  department: null,
+  role: null,
   project: null,
   milestone: null,
   tags: [],
@@ -172,7 +173,7 @@ describe('POST /api/board（作成）', () => {
       headers: { 'x-board-token': 'dev-token' },
       payload: {
         title: '記事を書く',
-        owner: 'ai-batch',
+        owner: 'cowork',
         handoff_note: '下書きお願いします',
         status: 'needs-ai',
       },
@@ -185,7 +186,7 @@ describe('POST /api/board（作成）', () => {
     expect(task.created_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.updated_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.activity).toHaveLength(1);
-    expect(task.activity[0]).toMatchObject({ actor: 'ai-batch', action: 'created' });
+    expect(task.activity[0]).toMatchObject({ actor: 'cowork', action: 'created' });
   });
 
   it('必須項目欠落は 422・success=false', async () => {
@@ -193,48 +194,30 @@ describe('POST /api/board（作成）', () => {
       method: 'POST',
       url: '/api/board',
       headers: { 'x-board-token': 'dev-token' },
-      payload: { owner: 'ai-batch', handoff_note: 'メモ', status: 'needs-ai' },
+      payload: { owner: 'cowork', handoff_note: 'メモ', status: 'needs-ai' },
     });
     expect(res.statusCode).toBe(422);
     expect(res.json().success).toBe(false);
   });
 
-  it('agent/project/milestone を受理して作成タスクに反映する（ADR-0004）', async () => {
+  it('project/milestone を受理して作成タスクに反映する', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/board',
       headers: { 'x-board-token': 'dev-token' },
       payload: {
         title: '記事を書く',
-        owner: 'ai-batch',
+        owner: 'cowork',
         handoff_note: '下書きお願いします',
         status: 'needs-ai',
-        agent: 'codex',
         project: 'ニュースレター',
         milestone: '6月号',
       },
     });
     expect(res.statusCode).toBe(201);
     const task = res.json().data;
-    expect(task.agent).toBe('codex');
     expect(task.project).toBe('ニュースレター');
     expect(task.milestone).toBe('6月号');
-  });
-
-  it('owner=human で agent 指定は 422', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/board',
-      headers: { 'x-board-token': 'dev-token' },
-      payload: {
-        title: 'x',
-        owner: 'human',
-        handoff_note: 'メモ',
-        status: 'needs-human',
-        agent: 'codex',
-      },
-    });
-    expect(res.statusCode).toBe(422);
   });
 
   it('初期 status が in-progress は 422', async () => {
@@ -242,7 +225,7 @@ describe('POST /api/board（作成）', () => {
       method: 'POST',
       url: '/api/board',
       headers: { 'x-board-token': 'dev-token' },
-      payload: { title: 'x', owner: 'ai-batch', handoff_note: 'メモ', status: 'in-progress' },
+      payload: { title: 'x', owner: 'cowork', handoff_note: 'メモ', status: 'in-progress' },
     });
     expect(res.statusCode).toBe(422);
   });
@@ -276,7 +259,7 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
       sampleTask({
         id: 'wip',
         status: 'in-progress',
-        owner: 'ai-batch',
+        owner: 'cowork',
         updated_at: '2026-06-01T00:00:00Z',
       }),
       sampleTask({
@@ -312,7 +295,7 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
     expect(task.owner).toBe('human');
     expect(task.updated_at).toBe('2026-06-01T09:00:00.000Z');
     expect(task.activity.at(-1)).toMatchObject({
-      actor: 'ai-batch',
+      actor: 'cowork',
       action: 'needs-ai → in-progress',
     });
   });
@@ -439,7 +422,7 @@ describe('POST /api/board/:id/complete（完了→アーカイブ）', () => {
 
   beforeEach(async () => {
     repository = new InMemoryTaskRepository([
-      sampleTask({ id: 'fin', status: 'done', owner: 'ai-batch' }),
+      sampleTask({ id: 'fin', status: 'done', owner: 'cowork' }),
       sampleTask({ id: 'wip', status: 'in-progress', owner: 'human' }),
     ]);
     app = buildApp({
@@ -463,7 +446,7 @@ describe('POST /api/board/:id/complete（完了→アーカイブ）', () => {
     expect(res.statusCode).toBe(200);
     const task = res.json().data;
     expect(task.id).toBe('fin');
-    expect(task.activity.at(-1)).toMatchObject({ actor: 'ai-batch', action: 'archived' });
+    expect(task.activity.at(-1)).toMatchObject({ actor: 'cowork', action: 'archived' });
     expect((await repository.findAll()).map((t) => t.id)).not.toContain('fin');
     expect((await repository.findArchivedById('fin'))?.id).toBe('fin');
   });
@@ -556,16 +539,15 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     expect(t.activity.at(-1).action).toBe('edited');
   });
 
-  it('編集で agent/project/milestone を更新する（owner=AI 時）', async () => {
+  it('編集で project/milestone を更新する', async () => {
     const res = await app.inject({
       method: 'PATCH',
       url: '/api/board/t1/details',
       headers: { 'x-board-token': 'dev-token' },
-      payload: { ...edit, owner: 'ai-batch', agent: 'gemini', project: 'API刷新', milestone: 'v2' },
+      payload: { ...edit, owner: 'cowork', project: 'API刷新', milestone: 'v2' },
     });
     expect(res.statusCode).toBe(200);
     const t = res.json().data;
-    expect(t.agent).toBe('gemini');
     expect(t.project).toBe('API刷新');
     expect(t.milestone).toBe('v2');
   });

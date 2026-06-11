@@ -1,4 +1,4 @@
-import { OWNERS, type Owner, type Task } from '@handoff/shared';
+import { OWNERS, DEPARTMENTS, type Owner, type Department, type Task } from '@handoff/shared';
 import { summarizeBoard, distinctValues, ALL, type BoardFilter } from '../lib/board-view';
 
 interface BoardControlsProps {
@@ -42,6 +42,23 @@ export function BoardControls({ tasks, filter, onFilterChange }: BoardControlsPr
             {OWNERS.map((o) => (
               <option key={o} value={o}>
                 {o}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
+          <span>AI部署</span>
+          <select
+            value={filter.department}
+            onChange={(e) =>
+              onFilterChange({ ...filter, department: e.target.value as Department | typeof ALL })
+            }
+          >
+            <option value={ALL}>すべて</option>
+            {DEPARTMENTS.map((d) => (
+              <option key={d} value={d}>
+                {d}
               </option>
             ))}
           </select>

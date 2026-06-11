@@ -1,4 +1,4 @@
-import type { Owner, Task } from '@handoff/shared';
+import type { Department, Owner, Task } from '@handoff/shared';
 
 /** ボード上部に出すサマリ件数（ADR-0004 のレイアウト要件）。 */
 export interface BoardSummary {
@@ -23,17 +23,19 @@ export function summarizeBoard(tasks: Task[]): BoardSummary {
 export const ALL = 'all' as const;
 export type All = typeof ALL;
 
-/** ボードの絞り込み条件（ADR-0004）。各軸 ALL で無効化。 */
+/** ボードの絞り込み条件（ADR-0006）。各軸 ALL で無効化。 */
 export interface BoardFilter {
   owner: Owner | All;
+  department: Department | All;
   project: string | All;
   milestone: string | All;
 }
 
-/** owner/project/milestone を AND で絞り込む。各軸が ALL なら無視。 */
+/** owner/department/project/milestone を AND で絞り込む。各軸が ALL なら無視。 */
 export function filterTasks(tasks: Task[], filter: BoardFilter): Task[] {
   return tasks.filter((t) => {
     if (filter.owner !== ALL && t.owner !== filter.owner) return false;
+    if (filter.department !== ALL && t.department !== filter.department) return false;
     if (filter.project !== ALL && t.project !== filter.project) return false;
     if (filter.milestone !== ALL && t.milestone !== filter.milestone) return false;
     return true;

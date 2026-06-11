@@ -6,12 +6,13 @@ const task = (over: Partial<Task> = {}): Task => ({
   id: 't1',
   title: 'サンプル',
   status: 'needs-ai',
-  owner: 'ai-batch',
+  owner: 'cowork',
   priority: 'P2',
   action_type: 'other',
   handoff_note: '',
   blocked_reason: null,
-  agent: null,
+  department: null,
+  role: null,
   project: null,
   milestone: null,
   tags: [],
@@ -27,9 +28,9 @@ describe('summarizeBoard', () => {
     const summary = summarizeBoard([
       task({ id: '1', owner: 'human', status: 'needs-human' }),
       task({ id: '2', owner: 'human', status: 'in-progress' }),
-      task({ id: '3', owner: 'ai-batch', status: 'in-progress' }),
-      task({ id: '4', owner: 'ai-batch', status: 'blocked' }),
-      task({ id: '5', owner: 'ai-interactive', status: 'done' }),
+      task({ id: '3', owner: 'cowork', status: 'in-progress' }),
+      task({ id: '4', owner: 'cowork', status: 'blocked' }),
+      task({ id: '5', owner: 'claude-code', status: 'done' }),
     ]);
 
     expect(summary.humanAssigned).toBe(2); // owner=human の2件
@@ -40,33 +41,38 @@ describe('summarizeBoard', () => {
 
 describe('filterTasks', () => {
   const tasks = [
-    task({ id: '1', owner: 'human', project: 'PJ-A', milestone: 'v1' }),
-    task({ id: '2', owner: 'ai-batch', project: 'PJ-A', milestone: 'v2' }),
-    task({ id: '3', owner: 'ai-batch', project: 'PJ-B', milestone: null }),
+    task({ id: '1', owner: 'human', project: 'PJ-A', milestone: 'v1', department: null }),
+    task({ id: '2', owner: 'cowork', project: 'PJ-A', milestone: 'v2', department: 'engineering' }),
+    task({ id: '3', owner: 'cowork', project: 'PJ-B', milestone: null, department: 'contents' }),
   ];
 
   it('既定（すべて ALL）では全件を返す', () => {
-    const result = filterTasks(tasks, { owner: ALL, project: ALL, milestone: ALL });
+    const result = filterTasks(tasks, { owner: ALL, department: ALL, project: ALL, milestone: ALL });
     expect(result.map((t) => t.id)).toEqual(['1', '2', '3']);
   });
 
   it('owner で絞り込む', () => {
-    const result = filterTasks(tasks, { owner: 'ai-batch', project: ALL, milestone: ALL });
+    const result = filterTasks(tasks, { owner: 'cowork', department: ALL, project: ALL, milestone: ALL });
     expect(result.map((t) => t.id)).toEqual(['2', '3']);
   });
 
+  it('department で絞り込む（ADR-0006）', () => {
+    const result = filterTasks(tasks, { owner: ALL, department: 'engineering', project: ALL, milestone: ALL });
+    expect(result.map((t) => t.id)).toEqual(['2']);
+  });
+
   it('project で絞り込む', () => {
-    const result = filterTasks(tasks, { owner: ALL, project: 'PJ-A', milestone: ALL });
+    const result = filterTasks(tasks, { owner: ALL, department: ALL, project: 'PJ-A', milestone: ALL });
     expect(result.map((t) => t.id)).toEqual(['1', '2']);
   });
 
   it('milestone で絞り込む', () => {
-    const result = filterTasks(tasks, { owner: ALL, project: ALL, milestone: 'v2' });
+    const result = filterTasks(tasks, { owner: ALL, department: ALL, project: ALL, milestone: 'v2' });
     expect(result.map((t) => t.id)).toEqual(['2']);
   });
 
   it('複数条件は AND で重ねる', () => {
-    const result = filterTasks(tasks, { owner: 'ai-batch', project: 'PJ-A', milestone: ALL });
+    const result = filterTasks(tasks, { owner: 'cowork', department: ALL, project: 'PJ-A', milestone: ALL });
     expect(result.map((t) => t.id)).toEqual(['2']);
   });
 });

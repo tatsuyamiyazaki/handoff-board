@@ -5,7 +5,7 @@ import {
   type TokenVerifier,
 } from '../src/auth/auth-middleware.js';
 
-const boardTokens = { 'dev-token': 'ai-batch', 'agent-token': 'ai-interactive' };
+const boardTokens = { 'dev-token': 'cowork', 'agent-token': 'claude-code' };
 
 /** メール→検証成功、それ以外は throw するフェイク。Admin SDK の代替。 */
 function fakeVerifier(tokenToEmail: Record<string, string>): TokenVerifier {
@@ -30,12 +30,12 @@ async function caught(fn: () => Promise<unknown>): Promise<AuthError> {
 describe('authenticate（機械系 X-Board-Token パス）', () => {
   it('有効な X-Board-Token は actor をトークン種別として解決する', async () => {
     const result = await authenticate({ 'x-board-token': 'dev-token' }, { boardTokens });
-    expect(result).toEqual({ actor: 'ai-batch', type: 'machine' });
+    expect(result).toEqual({ actor: 'cowork', type: 'machine' });
   });
 
   it('別トークンは対応する actor を解決する', async () => {
     const result = await authenticate({ 'x-board-token': 'agent-token' }, { boardTokens });
-    expect(result).toEqual({ actor: 'ai-interactive', type: 'machine' });
+    expect(result).toEqual({ actor: 'claude-code', type: 'machine' });
   });
 
   it('未知の X-Board-Token は 403 で拒否する', async () => {

@@ -8,12 +8,13 @@ const sampleTask = (over: Partial<Task> = {}): Task => ({
   id: 'new-1',
   title: '記事を書く',
   status: 'needs-ai',
-  owner: 'ai-batch',
+  owner: 'cowork',
   priority: 'P2',
   action_type: 'other',
   handoff_note: 'お願い',
   blocked_reason: null,
-  agent: null,
+  department: null,
+  role: null,
   project: null,
   milestone: null,
   tags: [],
@@ -93,27 +94,69 @@ describe('CreateTaskDialog', () => {
     );
   });
 
-  it('AI 系 owner では AI（担当）を選べ、選んだ agent を作成入力に含めて送る（ADR-0004）', async () => {
+  it('AI 系 owner では AI部署を選べ、作成入力に含めて送る（ADR-0006）', async () => {
     const createTask = vi.fn().mockResolvedValue(sampleTask());
     render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={createTask} />);
 
     fireEvent.change(screen.getByLabelText('タイトル'), { target: { value: '記事' } });
     fireEvent.change(screen.getByLabelText('引き継ぎメモ'), { target: { value: 'お願い' } });
-    fireEvent.change(screen.getByLabelText('AI（担当）'), { target: { value: 'codex' } });
+    fireEvent.change(screen.getByLabelText('AI部署'), { target: { value: 'engineering' } });
     fireEvent.click(screen.getByRole('button', { name: '作成' }));
 
     await waitFor(() =>
-      expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ agent: 'codex' })),
+      expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ department: 'engineering' })),
     );
   });
 
-  it('owner=human を選ぶと AI（担当）欄は表示されない（ADR-0004 不変条件のUI反映）', () => {
-    const createTask = vi.fn();
+  it('owner=human を選ぶと AI部署欄は表示されない（不変条件のUI反映）', () => {
+    render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('担当'), { target: { value: 'human' } });
+    expect(screen.queryByLabelText('AI部署')).not.toBeInTheDocument();
+  });
+
+  it('部署を選ぶとロール欄が出て、その部署のロールだけを候補にする（ADR-0006）', () => {
+    render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={vi.fn()} />);
+    expect(screen.queryByLabelText('ロール')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('AI部署'), { target: { value: 'engineering' } });
+    const roleSelect = screen.getByLabelText('ロール');
+    expect(roleSelect.querySelector('option[value="code-review"]')).toBeInTheDocument();
+    expect(roleSelect.querySelector('option[value="brand-voice"]')).not.toBeInTheDocument();
+  });
+
+  it('AI部署とロールを選んで作成入力に含めて送る', async () => {
+    const createTask = vi.fn().mockResolvedValue(sampleTask());
     render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={createTask} />);
 
-    fireEvent.change(screen.getByLabelText('担当'), { target: { value: 'human' } });
+    fireEvent.change(screen.getByLabelText('タイトル'), { target: { value: '記事' } });
+    fireEvent.change(screen.getByLabelText('引き継ぎメモ'), { target: { value: 'お願い' } });
+    fireEvent.change(screen.getByLabelText('AI部署'), { target: { value: 'engineering' } });
+    fireEvent.change(screen.getByLabelText('ロール'), { target: { value: 'code-review' } });
+    fireEvent.click(screen.getByRole('button', { name: '作成' }));
 
-    expect(screen.queryByLabelText('AI（担当）')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({ department: 'engineering', role: 'code-review' }),
+      ),
+    );
+  });
+
+  it('部署を変更すると選択済みロールはリセットされる（カスケード）', async () => {
+    const createTask = vi.fn().mockResolvedValue(sampleTask());
+    render(<CreateTaskDialog onClose={() => {}} onCreated={() => {}} createTask={createTask} />);
+
+    fireEvent.change(screen.getByLabelText('タイトル'), { target: { value: '記事' } });
+    fireEvent.change(screen.getByLabelText('引き継ぎメモ'), { target: { value: 'お願い' } });
+    fireEvent.change(screen.getByLabelText('AI部署'), { target: { value: 'engineering' } });
+    fireEvent.change(screen.getByLabelText('ロール'), { target: { value: 'code-review' } });
+    fireEvent.change(screen.getByLabelText('AI部署'), { target: { value: 'business' } });
+    fireEvent.click(screen.getByRole('button', { name: '作成' }));
+
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({ department: 'business', role: null }),
+      ),
+    );
   });
 
   it('既存の project/milestone を datalist 候補としてサジェストする', () => {

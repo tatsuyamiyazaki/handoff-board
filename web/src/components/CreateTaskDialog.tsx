@@ -3,16 +3,19 @@ import {
   OWNERS,
   PRIORITIES,
   INITIAL_STATUSES,
+  isAiOwner,
   validateCreateTask,
   type Task,
   type Owner,
   type Priority,
   type InitialStatus,
-  type Agent,
+  type Department,
+  type Role,
 } from '@handoff/shared';
 import { createTask as defaultCreateTask } from '../api-client';
 import { useLabelOptions } from '../lib/label-options';
-import { AgentField } from './AgentField';
+import { DepartmentField } from './DepartmentField';
+import { RoleField } from './RoleField';
 import { Icon } from './icons';
 
 const STATUS_LABEL: Record<InitialStatus, string> = {
@@ -34,17 +37,33 @@ export function CreateTaskDialog({
   createTask = defaultCreateTask,
 }: CreateTaskDialogProps) {
   const [title, setTitle] = useState('');
-  const [owner, setOwner] = useState<Owner>('ai-batch');
+  const [owner, setOwner] = useState<Owner>('cowork');
   const [priority, setPriority] = useState<Priority>('P2');
   const [handoffNote, setHandoffNote] = useState('');
   const [status, setStatus] = useState<InitialStatus>('needs-ai');
   const [project, setProject] = useState('');
   const [milestone, setMilestone] = useState('');
-  const [agent, setAgent] = useState<Agent | ''>('');
+  const [department, setDepartment] = useState<Department | ''>('');
+  const [role, setRole] = useState<Role | ''>('');
   const { projects, milestones } = useLabelOptions();
 
-  // ADR-0004: owner=human は agent を持てない。AI 系のときだけ担当 AI を選べる。
-  const isAiOwner = owner !== 'human';
+  const aiOwner = isAiOwner(owner);
+
+  // owner を human にしたら AI 系メタデータ（department/role）をクリアする（ADR-0006 カスケード）。
+  function handleOwnerChange(next: Owner): void {
+    setOwner(next);
+    if (!isAiOwner(next)) {
+      setDepartment('');
+      setRole('');
+    }
+  }
+
+  // department を変えたら role をリセットする（部署に属さない role を残さない）。
+  function handleDepartmentChange(next: Department | ''): void {
+    setDepartment(next);
+    setRole('');
+  }
+
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,8 +77,10 @@ export function CreateTaskDialog({
       status,
       project,
       milestone,
-      // human のとき agent は必ず null（ADR-0004 不変条件）。AI 系で未選択も null。
-      agent: isAiOwner && agent !== '' ? agent : null,
+      // human のとき department は必ず null（ADR-0006 不変条件）。AI 系で未選択も null。
+      department: aiOwner && department !== '' ? department : null,
+      // role は department が選ばれているときのみ。未選択は null。
+      role: aiOwner && department !== '' && role !== '' ? role : null,
     };
 
     try {
@@ -105,7 +126,7 @@ export function CreateTaskDialog({
 
         <label className="field">
           <span>担当</span>
-          <select value={owner} onChange={(e) => setOwner(e.target.value as Owner)}>
+          <select value={owner} onChange={(e) => handleOwnerChange(e.target.value as Owner)}>
             {OWNERS.map((o) => (
               <option key={o} value={o}>
                 {o}
@@ -113,6 +134,11 @@ export function CreateTaskDialog({
             ))}
           </select>
         </label>
+
+        {aiOwner && <DepartmentField value={department} onChange={handleDepartmentChange} />}
+        {aiOwner && department !== '' && (
+          <RoleField department={department} value={role} onChange={setRole} />
+        )}
 
         <label className="field">
           <span>優先度</span>
@@ -135,8 +161,6 @@ export function CreateTaskDialog({
             ))}
           </select>
         </label>
-
-        {isAiOwner && <AgentField value={agent} onChange={setAgent} />}
 
         <label className="field">
           <span>プロジェクト</span>

@@ -8,12 +8,13 @@ const task = (over: Partial<Task> = {}): Task => ({
   id: 't1',
   title: '元タイトル',
   status: 'in-progress',
-  owner: 'ai-batch',
+  owner: 'cowork',
   priority: 'P2',
   action_type: 'other',
   handoff_note: '元メモ',
   blocked_reason: null,
-  agent: null,
+  department: null,
+  role: null,
   project: null,
   milestone: null,
   tags: ['old'],
@@ -25,6 +26,42 @@ const task = (over: Partial<Task> = {}): Task => ({
 });
 
 describe('EditDialog', () => {
+  it('AI 系タスクは department/role をプリフィルし、編集して送る（ADR-0006）', async () => {
+    const editTask = vi.fn().mockResolvedValue(task());
+    render(
+      <EditDialog
+        task={task({ owner: 'cowork', department: 'engineering', role: 'code-review' })}
+        onClose={() => {}}
+        onEdited={() => {}}
+        editTask={editTask}
+      />,
+    );
+
+    expect(screen.getByLabelText('AI部署')).toHaveValue('engineering');
+    expect(screen.getByLabelText('ロール')).toHaveValue('code-review');
+    fireEvent.change(screen.getByLabelText('ロール'), { target: { value: 'debug' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() =>
+      expect(editTask).toHaveBeenCalledWith(
+        't1',
+        expect.objectContaining({ department: 'engineering', role: 'debug' }),
+      ),
+    );
+  });
+
+  it('owner=human のタスクでは AI部署・ロール欄を表示しない', () => {
+    render(
+      <EditDialog
+        task={task({ owner: 'human', department: null, role: null })}
+        onClose={() => {}}
+        onEdited={() => {}}
+      />,
+    );
+    expect(screen.queryByLabelText('AI部署')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('ロール')).not.toBeInTheDocument();
+  });
+
   it('現在値をプリフィルし、保存で editTask を updated_at 付きで呼ぶ', async () => {
     const updated = task({ title: '新タイトル' });
     const editTask = vi.fn().mockResolvedValue(updated);
@@ -76,27 +113,6 @@ describe('EditDialog', () => {
     );
   });
 
-  it('AI 系 owner では agent をプリフィルし、変更して送る（ADR-0004）', async () => {
-    const editTask = vi.fn().mockResolvedValue(task());
-    render(
-      <EditDialog
-        task={task({ owner: 'ai-batch', agent: 'codex' })}
-        onClose={() => {}}
-        onEdited={() => {}}
-        editTask={editTask}
-      />,
-    );
-
-    const agentSelect = screen.getByLabelText('AI（担当）');
-    expect(agentSelect).toHaveValue('codex');
-    fireEvent.change(agentSelect, { target: { value: 'gemini' } });
-    fireEvent.click(screen.getByRole('button', { name: '保存' }));
-
-    await waitFor(() =>
-      expect(editTask).toHaveBeenCalledWith('t1', expect.objectContaining({ agent: 'gemini' })),
-    );
-  });
-
   it('既存の project を datalist 候補としてサジェストする', () => {
     render(
       <LabelOptionsProvider value={{ projects: ['API刷新', 'ニュースレター'], milestones: ['v2'] }}>
@@ -106,13 +122,6 @@ describe('EditDialog', () => {
     const projectInput = screen.getByLabelText('プロジェクト');
     const projectList = document.getElementById(projectInput.getAttribute('list') ?? '');
     expect(projectList?.querySelector('option[value="API刷新"]')).toBeInTheDocument();
-  });
-
-  it('owner=human のタスクでは AI（担当）欄を表示しない（ADR-0004 不変条件）', () => {
-    render(
-      <EditDialog task={task({ owner: 'human', agent: null })} onClose={() => {}} onEdited={() => {}} />,
-    );
-    expect(screen.queryByLabelText('AI（担当）')).not.toBeInTheDocument();
   });
 
   it('タグはカンマ区切りを配列に正規化して送る', async () => {
