@@ -118,8 +118,8 @@ body {
 /* ── Shell ───────────────────────────────────────────────────────────── */
 .app {
   padding: var(--space-md) var(--outer-gutter) var(--space-section);
-  max-width: var(--content-max);
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 /* Fixed-feel top bar: wordmark left, auth/CTA right, hairline underneath. */
