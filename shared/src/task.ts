@@ -10,10 +10,10 @@ export const STATUSES = [
 export type Status = (typeof STATUSES)[number];
 
 /**
- * タスクの担当主体（ADR-0006）。具体AI（cowork / claude-code）を owner に昇格させた。
+ * タスクの担当主体（ADR-0006）。具体AI（cowork / claude-code / codex）を owner に昇格させた。
  * human はレーン分け・遷移の routing 軸、AI 系は「どのAIが MCP 経由で pull するか」も兼ねる。
  */
-export const OWNERS = ['human', 'cowork', 'claude-code'] as const;
+export const OWNERS = ['human', 'cowork', 'claude-code', 'codex'] as const;
 export type Owner = (typeof OWNERS)[number];
 
 /** owner が AI 系か（human 以外）。department/role を持てる前提条件。 */
