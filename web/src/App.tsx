@@ -13,6 +13,7 @@ import {
   signOutUser,
 } from './auth/firebase-auth';
 import { Icon } from './components/icons';
+import { RunPanel } from './desktop/RunPanel';
 
 // #02 Firebase サインイン、#03 タスク作成、#05/#06 遷移・アーカイブ、#08 ポーリング自動更新。
 export function App() {
@@ -109,6 +110,7 @@ export function App() {
             onArchived={refreshBoard}
             onDeleted={refreshBoard}
           />
+          <RunPanel />
         </>
       ) : (
         <p className="app__signin-prompt">
@@ -128,3 +130,4 @@ export function App() {
     </LabelOptionsProvider>
   );
 }
+
