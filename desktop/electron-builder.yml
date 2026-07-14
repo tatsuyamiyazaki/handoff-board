@@ -1,0 +1,13 @@
+appId: dev.handoff.desktop
+productName: Handoff
+electronDist: node_modules/electron/dist
+directories:
+  output: release
+files:
+  - dist/**
+  - package.json
+extraResources:
+  - from: ../web/dist
+    to: web
+win:
+  target: nsis

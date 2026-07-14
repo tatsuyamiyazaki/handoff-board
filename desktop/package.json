@@ -9,7 +9,8 @@
     "dev": "node build.mjs && electron .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "package": "node build.mjs && electron-builder --win"
   },
   "dependencies": {
     "@handoff/shared": "workspace:*"
@@ -19,6 +20,7 @@
     "electron": "^36.0.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.2",
-    "vitest": "^3.0.5"
+    "vitest": "^3.0.5",
+    "electron-builder": "^26.0.0"
   }
 }
