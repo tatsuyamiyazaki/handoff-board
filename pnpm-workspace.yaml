@@ -2,3 +2,9 @@ packages:
   - 'shared'
   - 'api'
   - 'web'
+  - 'desktop'
+allowBuilds:
+  '@firebase/util': true
+  electron: true
+  esbuild: true
+  protobufjs: true
