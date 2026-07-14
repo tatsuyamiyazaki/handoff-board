@@ -32,6 +32,7 @@ function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): HandoffDeskt
     runTask: vi.fn().mockResolvedValue({ runId: 'run-1' }),
     cancelRun: vi.fn(),
     listRuns: vi.fn().mockResolvedValue([]),
+    getRunLog: vi.fn().mockResolvedValue(''),
     onRunEvent: vi.fn().mockReturnValue(() => {}),
     getSettings: vi.fn().mockResolvedValue({
       apiBaseUrl: '',
@@ -124,5 +125,22 @@ describe('RunTaskButton', () => {
     await waitFor(() => screen.getByRole('button', { name: '実行' }));
     await user.click(screen.getByRole('button', { name: '実行' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('コマンドが見つかりません');
+  });
+  it('実行中イベントを受けるとカードの実行ボタンを無効化する', async () => {
+    let emit: ((event: import('@handoff/shared').RunEvent) => void) | undefined;
+    const bridge = makeBridge({
+      onRunEvent: vi.fn((callback) => {
+        emit = callback;
+        return () => {};
+      }),
+    });
+    render(<RunTaskButton task={makeTask()} bridge={bridge} />);
+    await waitFor(() => expect(emit).toBeDefined());
+    await import('@testing-library/react').then(({ act }) => act(() => emit?.({
+      runId: 'run-1',
+      type: 'status',
+      run: { runId: 'run-1', taskId: 'task-1', taskTitle: 'T', cliName: 'Codex', status: 'running', exitCode: null },
+    })));
+    expect(await screen.findByRole('button', { name: 'AI実行中' })).toBeDisabled();
   });
 });

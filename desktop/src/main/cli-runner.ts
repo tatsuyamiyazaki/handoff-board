@@ -1,25 +1,20 @@
-// CLI 子プロセスの起動・出力ストリーミング・実行管理。spawn/kill は注入してテスト可能にする。
 import type { RunEvent, RunStatus, RunSummary } from '@handoff/shared';
 
 export type TemplateVars = Readonly<Record<'prompt' | 'taskId' | 'title', string>>;
 
-/** argsTemplate のプレースホルダを要素単位で展開する（文字列連結でコマンドを組まない）。 */
 export function expandArgs(template: readonly string[], vars: TemplateVars): string[] {
   return template.map((arg) =>
     arg.replace(/{(prompt|taskId|title)}/g, (_m, key: keyof TemplateVars) => vars[key]),
   );
 }
 
-/** promptTemplate の {taskId} / {title} を埋める。 */
 export function renderPrompt(template: string, vars: { taskId: string; title: string }): string {
   return template.replace(/{(taskId|title)}/g, (_m, key: 'taskId' | 'title') => vars[key]);
 }
 
-/**
- * Windows の shell:true（cmd.exe）向けの引数クォート。全体を二重引用符で包み、内部の " は "" に。
- * 制約: プロンプトに改行を含めない（settings-core が単一行テンプレートを前提とする）。
- */
+/** 互換 API。シェル境界に流せない改行を拒否する。実行自体は cross-spawn に委譲する。 */
 export function quoteForCmd(arg: string): string {
+  if (/[\r\n]/.test(arg)) throw new Error('CLI 引数に改行は使用できません');
   return '"' + arg.replace(/"/g, '""') + '"';
 }
 
@@ -34,10 +29,10 @@ export interface ChildLike {
 export type SpawnLike = (
   command: string,
   args: string[],
-  options: { cwd: string; shell: boolean },
+  options: { cwd: string; shell: false },
 ) => ChildLike;
 
-export type KillTreeFn = (pid: number) => void;
+export type KillTreeFn = (pid: number) => Promise<void>;
 
 export interface StartRequest {
   taskId: string;
@@ -54,6 +49,7 @@ interface RunEntry {
   summary: RunSummary;
   log: string;
   child: ChildLike | null;
+  cancelling: boolean;
 }
 
 export class CliRunner {
@@ -76,6 +72,9 @@ export class CliRunner {
     if (this.isTaskRunning(req.taskId)) {
       throw new Error('タスク ' + req.taskId + ' は実行中です');
     }
+    for (const arg of req.args) {
+      if (/[\r\n]/.test(arg)) throw new Error('CLI 引数に改行は使用できません');
+    }
     this.seq += 1;
     const runId = 'run-' + String(this.seq);
     const summary: RunSummary = {
@@ -86,12 +85,9 @@ export class CliRunner {
       status: 'running',
       exitCode: null,
     };
-    this.runs.set(runId, { summary, log: '', child: null });
+    this.runs.set(runId, { summary, log: '', child: null, cancelling: false });
 
-    const child = this.spawnFn(req.command, req.args.map(quoteForCmd), {
-      cwd: req.cwd,
-      shell: true,
-    });
+    const child = this.spawnFn(req.command, req.args, { cwd: req.cwd, shell: false });
     const entry = this.runs.get(runId);
     if (entry) entry.child = child;
 
@@ -102,6 +98,7 @@ export class CliRunner {
       this.finish(runId, 'failed', null);
     });
     child.on('exit', (code) => {
+      if (this.runs.get(runId)?.cancelling) return;
       this.finish(runId, code === 0 ? 'succeeded' : 'failed', code);
     });
 
@@ -109,14 +106,26 @@ export class CliRunner {
     return { runId };
   }
 
-  cancel(runId: string): void {
+  async cancel(runId: string): Promise<void> {
     const entry = this.runs.get(runId);
-    if (!entry || entry.summary.status !== 'running') return;
-    if (entry.child?.pid !== undefined) this.killTree(entry.child.pid);
-    this.finish(runId, 'cancelled', null);
+    if (!entry || entry.summary.status !== 'running' || entry.cancelling) return;
+    if (entry.child?.pid === undefined) {
+      this.finish(runId, 'cancelled', null);
+      return;
+    }
+    entry.cancelling = true;
+    try {
+      await this.killTree(entry.child.pid);
+      this.finish(runId, 'cancelled', null);
+    } catch (err: unknown) {
+      entry.cancelling = false;
+      const message = err instanceof Error ? err.message : String(err);
+      this.append(runId, 'stderr', 'キャンセルに失敗しました: ' + message + '\n');
+      this.finish(runId, 'failed', null);
+      throw err;
+    }
   }
 
-  /** 新しい順のサマリ一覧。 */
   list(): RunSummary[] {
     return [...this.runs.values()].map((r) => r.summary).reverse();
   }

@@ -1,6 +1,6 @@
 {
   "name": "@handoff/desktop",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist/main/index.js",
@@ -10,17 +10,19 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "package": "node build.mjs && electron-builder --win"
+    "package": "node check-release-env.mjs && node build.mjs && electron-builder --win"
   },
   "dependencies": {
-    "@handoff/shared": "workspace:*"
+    "@handoff/shared": "workspace:*",
+    "cross-spawn": "^7.0.6"
   },
   "devDependencies": {
+    "@types/cross-spawn": "^6.0.6",
     "@types/node": "^22.19.19",
     "electron": "^36.0.0",
+    "electron-builder": "^26.0.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.7.2",
-    "vitest": "^3.0.5",
-    "electron-builder": "^26.0.0"
+    "vitest": "^3.0.5"
   }
 }

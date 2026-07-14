@@ -31,7 +31,7 @@ Google OAuth のループバック認証には、GCP コンソールの「認証
 
 renderer の Firebase 認証と API 接続には `web/.env` の `VITE_FIREBASE_*` および `VITE_API_BASE` が必要です。必要なキーはルートの `.env.example` も参照してください。
 
-Cloud Run の `handoff-api` では、`CORS_ORIGINS` に `app://bundle` を追加してください。環境変数の確認・更新方法は [DEPLOYMENT.md](DEPLOYMENT.md) の Cloud Run 運用手順に従います。
+Cloud Run の `handoff-api` では、`CORS_ORIGIN` に `app://bundle` を追加してください。環境変数の確認・更新方法は [DEPLOYMENT.md](DEPLOYMENT.md) の Cloud Run 運用手順に従います。
 
 実行対象フォルダ、またはユーザースコープには handoff-mcp の接続設定が必要です。デスクトップアプリ自身は MCP サーバーの登録を行いません。
 
@@ -45,7 +45,7 @@ Cloud Run の `handoff-api` では、`CORS_ORIGINS` に `app://bundle` を追加
 pnpm package:desktop
 ```
 
-Web と Electron をビルドし、NSIS インストーラーを `desktop/release/` に生成します。
+必要なリリース環境変数が不足している場合は開始前に失敗します。Web と Electron をビルドし、NSIS インストーラーを `desktop/release/` に生成します。
 
 ## 現在の制約
 

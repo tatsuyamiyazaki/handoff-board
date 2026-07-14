@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Board } from './components/Board';
 import { BoardControls } from './components/BoardControls';
@@ -40,11 +40,16 @@ export function App() {
   };
 
   useEffect(() => onUserChange(setEmail), []);
+  useEffect(() => {
+    const openSettings = (): void => setShowDesktopSettings(true);
+    window.addEventListener('handoff:open-settings', openSettings);
+    return () => window.removeEventListener('handoff:open-settings', openSettings);
+  }, []);
 
-  const refreshBoard = (): void => {
+  const refreshBoard = useCallback((): void => {
     void queryClient.invalidateQueries({ queryKey: BOARD_QUERY_KEY });
-  };
-  useEffect(refreshBoard, [email]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [queryClient]);
+  useEffect(refreshBoard, [email, refreshBoard]);
 
   const message = authError ?? (error instanceof Error ? error.message : null);
 
@@ -120,7 +125,7 @@ export function App() {
               onArchived={refreshBoard}
               onDeleted={refreshBoard}
             />
-            <RunPanel />
+            <RunPanel onTerminal={refreshBoard} />
           </>
         ) : (
           <p className="app__signin-prompt">

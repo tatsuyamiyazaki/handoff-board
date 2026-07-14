@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { HandoffDesktopBridge, RunSummary } from '@handoff/shared';
 
-/** renderer 側で保持するログの上限（1実行あたり）。超過分は先頭から捨てる。 */
 const MAX_CLIENT_LOG_CHARS = 200_000;
 
 export interface RunsState {
@@ -9,16 +8,21 @@ export interface RunsState {
   logs: Record<string, string>;
 }
 
-/** 実行イベントを購読し、実行一覧とログを状態として返す。 */
-export function useRunEvents(bridge: HandoffDesktopBridge): RunsState {
+export function useRunEvents(
+  bridge: HandoffDesktopBridge,
+  onTerminal?: (run: RunSummary) => void,
+): RunsState {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [logs, setLogs] = useState<Record<string, string>>({});
+  const onTerminalRef = useRef(onTerminal);
+  onTerminalRef.current = onTerminal;
 
   useEffect(() => {
-    void bridge.listRuns().then(setRuns);
-    return bridge.onRunEvent((ev) => {
+    let active = true;
+    const unsubscribe = bridge.onRunEvent((ev) => {
       if (ev.type === 'status') {
-        setRuns((prev) => [ev.run, ...prev.filter((r) => r.runId !== ev.run.runId)]);
+        setRuns((prev) => [ev.run, ...prev.filter((run) => run.runId !== ev.run.runId)]);
+        if (ev.run.status !== 'running') onTerminalRef.current?.(ev.run);
       } else {
         setLogs((prev) => ({
           ...prev,
@@ -26,6 +30,26 @@ export function useRunEvents(bridge: HandoffDesktopBridge): RunsState {
         }));
       }
     });
+
+    void bridge
+      .listRuns()
+      .then(async (initialRuns) => {
+        const entries = await Promise.all(
+          initialRuns.map(async (run) => [run.runId, await bridge.getRunLog(run.runId)] as const),
+        );
+        if (!active) return;
+        setRuns((current) => [
+          ...current,
+          ...initialRuns.filter((run) => !current.some((item) => item.runId === run.runId)),
+        ]);
+        setLogs((current) => ({ ...Object.fromEntries(entries), ...current }));
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [bridge]);
 
   return { runs, logs };

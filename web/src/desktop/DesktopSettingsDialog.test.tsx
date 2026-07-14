@@ -24,6 +24,7 @@ function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): HandoffDeskt
     runTask: vi.fn(),
     cancelRun: vi.fn(),
     listRuns: vi.fn(),
+    getRunLog: vi.fn().mockResolvedValue(''),
     onRunEvent: vi.fn(),
     getSettings: vi.fn().mockResolvedValue(SETTINGS),
     setSettings: vi.fn().mockImplementation((patch: Partial<DesktopSettings>) =>

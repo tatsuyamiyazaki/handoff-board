@@ -11,12 +11,12 @@ class FakeChild extends EventEmitter {
 
 function setup() {
   const children: FakeChild[] = [];
-  const spawnFn = vi.fn((_cmd: string, _args: string[], _opts: { cwd: string; shell: boolean }) => {
+  const spawnFn = vi.fn((_cmd: string, _args: string[], _opts: { cwd: string; shell: false }) => {
     const child = new FakeChild();
     children.push(child);
     return child as unknown as ChildLike;
   });
-  const killTree = vi.fn();
+  const killTree = vi.fn().mockResolvedValue(undefined);
   const events: RunEvent[] = [];
   const runner = new CliRunner(spawnFn, killTree, (ev) => events.push(ev));
   return { runner, spawnFn, killTree, events, children };
@@ -50,15 +50,18 @@ describe('expandArgs / renderPrompt / quoteForCmd', () => {
     expect(quoteForCmd('hello world')).toBe('"hello world"');
     expect(quoteForCmd('say "hi"')).toBe('"say ""hi"""');
   });
+  it('quoteForCmd はシェルの行境界になる改行を拒否する', () => {
+    expect(() => quoteForCmd('safe\r\nwhoami')).toThrow('改行');
+  });
 });
 
 describe('CliRunner', () => {
   it('start で running ステータスを発行し、引数を quote して spawn する', () => {
     const { runner, spawnFn, events } = setup();
     const { runId } = runner.start(REQ);
-    expect(spawnFn).toHaveBeenCalledWith('claude', ['"-p"', '"やる"'], {
+    expect(spawnFn).toHaveBeenCalledWith('claude', ['-p', 'やる'], {
       cwd: 'C:/work',
-      shell: true,
+      shell: false,
     });
     expect(events[0]).toMatchObject({ runId, type: 'status', run: { status: 'running' } });
   });
@@ -101,10 +104,10 @@ describe('CliRunner', () => {
     expect(() => runner.start(REQ)).not.toThrow();
   });
 
-  it('cancel は killTree を呼び cancelled にする。後続の exit で上書きされない', () => {
+  it('cancel は killTree 完了後に cancelled にする。後続の exit で上書きされない', async () => {
     const { runner, killTree, children } = setup();
     const { runId } = runner.start(REQ);
-    runner.cancel(runId);
+    await runner.cancel(runId);
     expect(killTree).toHaveBeenCalledWith(1234);
     children[0].emit('exit', 1);
     expect(runner.list().find((r) => r.runId === runId)?.status).toBe('cancelled');

@@ -104,6 +104,9 @@ export function applySettingsPatch(current: DesktopSettings, patch: unknown): De
         if (!isNonEmptyString(value)) {
           throw new SettingsValidationError('promptTemplate は空にできません');
         }
+        if (/[\r\n]/.test(value)) {
+          throw new SettingsValidationError('promptTemplate は単一行で入力してください');
+        }
         next = { ...next, promptTemplate: value };
         break;
       }

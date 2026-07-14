@@ -132,7 +132,7 @@ export function DesktopSettingsDialog({ bridge, onClose }: DesktopSettingsDialog
             </label>
             <label className="field">
               <span>プロンプトテンプレート</span>
-              <textarea
+              <input
                 aria-label="プロンプトテンプレート"
                 value={promptTemplate}
                 onChange={(e) => setPromptTemplate(e.target.value)}

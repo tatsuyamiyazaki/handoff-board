@@ -6,16 +6,17 @@ import { useRunEvents } from './useRunEvents';
 interface RunPanelProps {
   /** テスト用に差し替え可能。既定は window.handoffDesktop。 */
   bridge?: HandoffDesktopBridge | null;
+  onTerminal?: () => void;
 }
 
 /** CLI 実行の一覧とログを表示するパネル。デスクトップ版のみ表示。 */
-export function RunPanel({ bridge = desktopBridge() }: RunPanelProps) {
+export function RunPanel({ bridge = desktopBridge(), onTerminal }: RunPanelProps) {
   if (!bridge) return null;
-  return <RunPanelInner bridge={bridge} />;
+  return <RunPanelInner bridge={bridge} onTerminal={onTerminal} />;
 }
 
-function RunPanelInner({ bridge }: { bridge: HandoffDesktopBridge }) {
-  const { runs, logs } = useRunEvents(bridge);
+function RunPanelInner({ bridge, onTerminal }: { bridge: HandoffDesktopBridge; onTerminal?: () => void }) {
+  const { runs, logs } = useRunEvents(bridge, onTerminal);
   const [openRunId, setOpenRunId] = useState<string | null>(null);
 
   if (runs.length === 0) return null;

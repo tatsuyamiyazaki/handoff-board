@@ -50,6 +50,12 @@ describe('applySettingsPatch', () => {
     );
   });
 
+  it('改行を含む promptTemplate は拒否する', () => {
+    expect(() =>
+      applySettingsPatch(DEFAULT_SETTINGS, { promptTemplate: 'first\nsecond' }),
+    ).toThrow(SettingsValidationError);
+  });
+
   it('cliDefinitions の id 重複は拒否する', () => {
     const dup = [
       { id: 'a', name: 'A', command: 'a', argsTemplate: ['{prompt}'], defaultForOwners: [] },

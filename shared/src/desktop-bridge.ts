@@ -57,6 +57,7 @@ export interface HandoffDesktopBridge {
   runTask(req: RunTaskRequest): Promise<{ runId: string }>;
   cancelRun(runId: string): Promise<void>;
   listRuns(): Promise<RunSummary[]>;
+  getRunLog(runId: string): Promise<string>;
   /** 実行イベントを購読する。戻り値は解除関数。 */
   onRunEvent(cb: (ev: RunEvent) => void): () => void;
   getSettings(): Promise<DesktopSettings>;

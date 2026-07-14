@@ -4,12 +4,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { HandoffDesktopBridge, RunEvent } from '@handoff/shared';
 import { RunPanel } from './RunPanel';
 
-function makeBridge(): { bridge: HandoffDesktopBridge; emit: (ev: RunEvent) => void } {
+function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): { bridge: HandoffDesktopBridge; emit: (ev: RunEvent) => void } {
   let handler: ((ev: RunEvent) => void) | null = null;
   const bridge = {
     runTask: vi.fn(),
     cancelRun: vi.fn().mockResolvedValue(undefined),
     listRuns: vi.fn().mockResolvedValue([]),
+    getRunLog: vi.fn().mockResolvedValue(''),
     onRunEvent: vi.fn((cb: (ev: RunEvent) => void) => {
       handler = cb;
       return () => {
@@ -20,6 +21,7 @@ function makeBridge(): { bridge: HandoffDesktopBridge; emit: (ev: RunEvent) => v
     setSettings: vi.fn(),
     pickFolder: vi.fn(),
     signIn: vi.fn(),
+    ...overrides,
   } as unknown as HandoffDesktopBridge;
   return { bridge, emit: (ev) => handler?.(ev) };
 }
@@ -74,5 +76,17 @@ describe('RunPanel', () => {
       });
     });
     expect(screen.queryByRole('button', { name: 'キャンセル' })).not.toBeInTheDocument();
+  });
+  it('保持済みログを初期一覧と一緒に復元する', async () => {
+    const user = userEvent.setup();
+    const finished = { ...RUNNING, status: 'failed' as const, exitCode: 1 };
+    const { bridge } = makeBridge({
+      listRuns: vi.fn().mockResolvedValue([finished]),
+      getRunLog: vi.fn().mockResolvedValue('previous error\n'),
+    });
+    render(<RunPanel bridge={bridge} />);
+    expect(await screen.findByText('タスクA')).toBeInTheDocument();
+    await user.click(screen.getByText('タスクA'));
+    expect(screen.getByText(/previous error/)).toBeInTheDocument();
   });
 });
