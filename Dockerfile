@@ -4,8 +4,8 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# lockfile（pnpm v10）に合わせて pnpm を固定する。
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+# lockfile に合わせて pnpm を固定する。
+RUN corepack enable && corepack prepare pnpm@11.13.0 --activate
 
 # .dockerignore で node_modules / .env / dist / .git 等は除外済み。
 COPY . .
