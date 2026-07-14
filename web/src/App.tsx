@@ -13,26 +13,27 @@ import {
   signOutUser,
 } from './auth/firebase-auth';
 import { Icon } from './components/icons';
+import { desktopBridge } from './desktop/bridge';
+import { DesktopSettingsDialog } from './desktop/DesktopSettingsDialog';
 import { RunPanel } from './desktop/RunPanel';
 
 // #02 Firebase サインイン、#03 タスク作成、#05/#06 遷移・アーカイブ、#08 ポーリング自動更新。
 export function App() {
   const queryClient = useQueryClient();
+  const bridge = desktopBridge();
   const [authError, setAuthError] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showDesktopSettings, setShowDesktopSettings] = useState(false);
   const [filter, setFilter] = useState<BoardFilter>({
     owner: ALL,
     department: ALL,
     project: ALL,
     milestone: ALL,
   });
-  // サインイン中のみボードを取得する。未ログイン時は他人のタスクを一切読み込まない。
   const isSignedIn = email !== null;
   const { data: tasks = [], error } = useBoard({ enabled: isSignedIn });
-  // サマリ・選択肢は全タスク、カンバンには絞り込み後を渡す。
   const visibleTasks = filterTasks(tasks, filter);
-  // ダイアログの datalist 候補は、フィルタ前の全タスク由来の既存 project/milestone。
   const labelOptions = {
     projects: distinctValues(tasks, 'project'),
     milestones: distinctValues(tasks, 'milestone'),
@@ -40,7 +41,6 @@ export function App() {
 
   useEffect(() => onUserChange(setEmail), []);
 
-  // サインイン状態が変わると認証ヘッダーが変わるため、ボードを再取得する。
   const refreshBoard = (): void => {
     void queryClient.invalidateQueries({ queryKey: BOARD_QUERY_KEY });
   };
@@ -50,84 +50,102 @@ export function App() {
 
   return (
     <LabelOptionsProvider value={labelOptions}>
-    <main className="app">
-      <header className="app__header">
-        <div className="app__brand">
-          <h1 className="app__title">HANDOFF</h1>
-          <p className="app__subtitle">人間とAIの共同タスクボード</p>
-        </div>
-        <div className="app__auth">
-          {isSignedIn && (
-            <button
-              type="button"
-              aria-label="新規タスク"
-              title="新規タスク"
-              onClick={() => setShowCreate(true)}
-            >
-              <Icon name="plus" />
-            </button>
-          )}
-          {email ? (
-            <>
-              <span className="app__user">{email}</span>
+      <main className="app">
+        <header className="app__header">
+          <div className="app__brand">
+            <h1 className="app__title">HANDOFF</h1>
+            <p className="app__subtitle">人間とAIの共同タスクボード</p>
+          </div>
+          <div className="app__auth">
+            {bridge && (
               <button
                 type="button"
-                aria-label="サインアウト"
-                title="サインアウト"
-                onClick={() => void signOutUser()}
+                aria-label="デスクトップ設定"
+                title="デスクトップ設定"
+                onClick={() => setShowDesktopSettings(true)}
               >
-                <Icon name="log-out" />
+                ⚙
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              aria-label="Google でサインイン"
-              title="Google でサインイン"
-              disabled={!isAuthConfigured()}
-              onClick={() =>
-                void signInWithGoogle().catch((e: unknown) =>
-                  setAuthError(e instanceof Error ? e.message : String(e)),
-                )
-              }
-            >
-              <Icon name="log-in" />
-            </button>
-          )}
-        </div>
-      </header>
-      {message && (
-        <p role="alert" className="app__error">
-          {message}
-        </p>
-      )}
-      {isSignedIn ? (
-        <>
-          <BoardControls tasks={tasks} filter={filter} onFilterChange={setFilter} />
-          <Board
-            tasks={visibleTasks}
-            onTransitioned={refreshBoard}
-            onArchived={refreshBoard}
-            onDeleted={refreshBoard}
+            )}
+            {isSignedIn && (
+              <button
+                type="button"
+                aria-label="新規タスク"
+                title="新規タスク"
+                onClick={() => setShowCreate(true)}
+              >
+                <Icon name="plus" />
+              </button>
+            )}
+            {email ? (
+              <>
+                <span className="app__user">{email}</span>
+                <button
+                  type="button"
+                  aria-label="サインアウト"
+                  title="サインアウト"
+                  onClick={() => void signOutUser()}
+                >
+                  <Icon name="log-out" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                aria-label="Google でサインイン"
+                title="Google でサインイン"
+                disabled={!isAuthConfigured()}
+                onClick={() =>
+                  void signInWithGoogle().catch((e: unknown) =>
+                    setAuthError(e instanceof Error ? e.message : String(e)),
+                  )
+                }
+              >
+                <Icon name="log-in" />
+              </button>
+            )}
+          </div>
+        </header>
+        {message && (
+          <p role="alert" className="app__error">
+            {message}
+          </p>
+        )}
+        {isSignedIn ? (
+          <>
+            <BoardControls tasks={tasks} filter={filter} onFilterChange={setFilter} />
+            <Board
+              tasks={visibleTasks}
+              onTransitioned={refreshBoard}
+              onArchived={refreshBoard}
+              onDeleted={refreshBoard}
+            />
+            <RunPanel />
+          </>
+        ) : (
+          <p className="app__signin-prompt">
+            サインインすると、あなたが作成したタスクのボードが表示されます。
+          </p>
+        )}
+        {showCreate && (
+          <CreateTaskDialog
+            onClose={() => setShowCreate(false)}
+            onCreated={() => {
+              refreshBoard();
+              setShowCreate(false);
+            }}
           />
-          <RunPanel />
-        </>
-      ) : (
-        <p className="app__signin-prompt">
-          サインインすると、あなたが作成したタスクのボードが表示されます。
-        </p>
-      )}
-      {showCreate && (
-        <CreateTaskDialog
-          onClose={() => setShowCreate(false)}
-          onCreated={() => {
-            refreshBoard();
-            setShowCreate(false);
-          }}
-        />
-      )}
-    </main>
+        )}
+        {showDesktopSettings && bridge && (
+          <DesktopSettingsDialog
+            bridge={bridge}
+            onClose={() => {
+              setShowDesktopSettings(false);
+              refreshBoard();
+            }}
+          />
+        )}
+      </main>
     </LabelOptionsProvider>
   );
 }
-
