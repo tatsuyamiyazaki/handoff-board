@@ -6,6 +6,7 @@ import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   GoogleAuthProvider,
+  signInWithCredential,
   signInWithPopup,
   signOut,
   onAuthStateChanged,
@@ -34,10 +35,17 @@ export function isAuthConfigured(): boolean {
   return configured;
 }
 
-/** Google ポップアップでサインインする。未構成時は例外。 */
+/** Google でサインインする。デスクトップ版はブリッジ（ループバック OAuth）、ブラウザはポップアップ。未構成時は例外。 */
 export async function signInWithGoogle(): Promise<void> {
   if (!configured) throw new Error('Firebase が未構成です（VITE_FIREBASE_* を設定してください）');
-  await signInWithPopup(getAuth(ensureApp()), new GoogleAuthProvider());
+  const auth = getAuth(ensureApp());
+  const bridge = window.handoffDesktop;
+  if (bridge) {
+    const { idToken } = await bridge.signIn();
+    await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+    return;
+  }
+  await signInWithPopup(auth, new GoogleAuthProvider());
 }
 
 /** サインアウトする。 */

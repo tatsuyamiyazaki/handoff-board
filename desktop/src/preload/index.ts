@@ -7,6 +7,7 @@ const bridge = {
   setSettings: (patch: Partial<DesktopSettings>): Promise<DesktopSettings> =>
     ipcRenderer.invoke('settings:set', patch),
   pickFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:pick-folder'),
+  signIn: (): Promise<{ idToken: string }> => ipcRenderer.invoke('auth:sign-in'),
 };
 
 contextBridge.exposeInMainWorld('handoffDesktop', bridge);
