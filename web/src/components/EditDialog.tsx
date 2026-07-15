@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import {
   OWNERS,
   PRIORITIES,
@@ -104,7 +105,7 @@ export function EditDialog({
     }
   }
 
-  return (
+  return createPortal(
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <form
         className="create-dialog"
@@ -215,6 +216,7 @@ export function EditDialog({
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

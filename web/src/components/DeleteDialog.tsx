@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Task } from '@handoff/shared';
 import { deleteTask as defaultDeleteTask } from '../api-client';
 import { Icon } from './icons';
@@ -33,7 +34,7 @@ export function DeleteDialog({
     }
   }
 
-  return (
+  return createPortal(
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <div
         className="block-dialog"
@@ -67,6 +68,7 @@ export function DeleteDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

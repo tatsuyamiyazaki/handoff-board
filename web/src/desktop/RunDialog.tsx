@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { DesktopSettings, HandoffDesktopBridge, Task } from '@handoff/shared';
 
 interface RunDialogProps {
@@ -61,7 +62,7 @@ export function RunDialog({ task, bridge, onClose }: RunDialogProps) {
     }
   }
 
-  return (
+  return createPortal(
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <div className="run-dialog" role="dialog" aria-label="タスクを CLI で実行" onClick={(event) => event.stopPropagation()}>
         <h2 className="run-dialog__title">AI実行 — {task.title}</h2>
@@ -89,6 +90,7 @@ export function RunDialog({ task, bridge, onClose }: RunDialogProps) {
           <button type="button" disabled={!cliId || !cwd || submitting} onClick={() => void handleRun()}>実行</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
