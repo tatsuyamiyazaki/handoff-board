@@ -108,6 +108,7 @@ export class CliRunner {
     child.stderr?.on('data', (chunk) => this.append(runId, 'stderr', String(chunk)));
     child.on('error', (err) => {
       this.append(runId, 'stderr', err.message + '\n');
+      if (this.runs.get(runId)?.cancelling) return;
       this.finish(runId, 'failed', null);
     });
     child.on('exit', (code) => {
@@ -129,7 +130,6 @@ export class CliRunner {
     entry.cancelling = true;
     try {
       await this.killTree(entry.child.pid);
-      this.finish(runId, 'cancelled', null);
     } catch (err: unknown) {
       if (isProcessAlreadyExitedError(err)) {
         this.finish(runId, 'cancelled', null);
@@ -141,6 +141,7 @@ export class CliRunner {
       this.finish(runId, 'failed', null);
       throw err;
     }
+    this.finish(runId, 'cancelled', null);
   }
 
   list(): RunSummary[] {

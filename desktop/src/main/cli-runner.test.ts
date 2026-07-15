@@ -170,6 +170,38 @@ describe('CliRunner', () => {
     expect(terminalStatusEvents(events, runId)).toHaveLength(1);
   });
 
+  it('killTree 待機中の child error は失敗終了させず、killTree の完了で cancelled にする', async () => {
+    const killPending = deferred<void>();
+    const { runner, killTree, events, children } = setup();
+    killTree.mockReturnValueOnce(killPending.promise);
+    const { runId } = runner.start(REQ);
+
+    const cancelPromise = runner.cancel(runId);
+    children[0].emit('error', new Error('child terminated'));
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('running');
+
+    killPending.resolve();
+    await expect(cancelPromise).resolves.toBeUndefined();
+
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('cancelled');
+    expect(runner.getLogSnapshot(runId).log).toContain('child terminated');
+    expect(terminalStatusEvents(events, runId)).toHaveLength(1);
+  });
+
+  it('cancelled の status emitter 例外を killTree 失敗として記録しない', async () => {
+    const spawnFn = vi.fn(() => new FakeChild() as unknown as ChildLike);
+    const terminalEmitError = new Error('terminal emit failed');
+    const runner = new CliRunner(spawnFn, vi.fn().mockResolvedValue(undefined), (event) => {
+      if (event.type === 'status' && event.run.status === 'cancelled') throw terminalEmitError;
+    });
+    const { runId } = runner.start(REQ);
+
+    await expect(runner.cancel(runId)).rejects.toBe(terminalEmitError);
+
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('cancelled');
+    expect(runner.getLogSnapshot(runId).log).not.toContain('キャンセルに失敗しました');
+  });
+
   it.each([128, '128'])('killTree の code %s は cancelled として扱い reject しない', async (code) => {
     const killPending = deferred<void>();
     const { runner, killTree, events, children } = setup();
