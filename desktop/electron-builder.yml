@@ -11,3 +11,4 @@ extraResources:
     to: web
 win:
   target: nsis
+  icon: ../web/public/icon-1024.png
