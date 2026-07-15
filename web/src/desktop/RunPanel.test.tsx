@@ -4,6 +4,14 @@ import { describe, expect, it, vi } from 'vitest';
 import type { HandoffDesktopBridge, RunEvent } from '@handoff/shared';
 import { RunPanel } from './RunPanel';
 
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((fulfill) => {
+    resolve = fulfill;
+  });
+  return { promise, resolve };
+}
+
 function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): { bridge: HandoffDesktopBridge; emit: (ev: RunEvent) => void } {
   let handler: ((ev: RunEvent) => void) | null = null;
   const bridge = {
@@ -88,5 +96,67 @@ describe('RunPanel', () => {
     expect(await screen.findByText('タスクA')).toBeInTheDocument();
     await user.click(screen.getByText('タスクA'));
     expect(screen.getByText(/previous error/)).toBeInTheDocument();
+  });
+
+  it('初期ログ取得中のイベントを sequence で snapshot と突き合わせる', async () => {
+    const snapshot = deferred<{ log: string; lastSequence: number }>();
+    const { bridge, emit } = makeBridge({
+      listRuns: vi.fn().mockResolvedValue([RUNNING]),
+      getRunLog: vi.fn().mockReturnValue(snapshot.promise),
+    });
+    render(<RunPanel bridge={bridge} />);
+    await waitFor(() => expect(bridge.getRunLog).toHaveBeenCalledWith('run-1'));
+
+    act(() => {
+      emit({ runId: 'run-1', type: 'stdout', chunk: 'already in snapshot\n', sequence: 1 });
+      emit({ runId: 'run-1', type: 'stderr', chunk: 'new live chunk\n', sequence: 2 });
+    });
+    await act(async () => {
+      snapshot.resolve({ log: 'snapshot log\n', lastSequence: 1 });
+      await snapshot.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/snapshot log/).textContent).toBe('snapshot log\nnew live chunk\n');
+    });
+  });
+
+  it('初期一覧にない実行の buffered log を初期化後も保持する', async () => {
+    const snapshot = deferred<{ log: string; lastSequence: number }>();
+    const historical = { ...RUNNING, runId: 'run-old', status: 'succeeded' as const, exitCode: 0 };
+    const live = { ...RUNNING, runId: 'run-live', taskId: 't-live', taskTitle: 'ライブ実行' };
+    const { bridge, emit } = makeBridge({
+      listRuns: vi.fn().mockResolvedValue([historical]),
+      getRunLog: vi.fn().mockReturnValue(snapshot.promise),
+    });
+    render(<RunPanel bridge={bridge} />);
+    await waitFor(() => expect(bridge.getRunLog).toHaveBeenCalledWith('run-old'));
+
+    act(() => {
+      emit({ runId: 'run-live', type: 'status', run: live });
+      emit({ runId: 'run-live', type: 'stdout', chunk: 'buffer only\n', sequence: 1 });
+    });
+    await act(async () => {
+      snapshot.resolve({ log: 'historical\n', lastSequence: 1 });
+      await snapshot.promise;
+    });
+
+    expect(await screen.findByText('ライブ実行')).toBeInTheDocument();
+    expect(screen.getByText('buffer only')).toBeInTheDocument();
+  });
+
+  it('snapshot から復元したログもクライアント上限に収める', async () => {
+    const { bridge } = makeBridge({
+      listRuns: vi.fn().mockResolvedValue([RUNNING]),
+      getRunLog: vi.fn().mockResolvedValue({ log: `a${'x'.repeat(200_000)}`, lastSequence: 1 }),
+    });
+    render(<RunPanel bridge={bridge} />);
+
+    expect(await screen.findByText('タスクA')).toBeInTheDocument();
+    await waitFor(() => {
+      const log = document.querySelector('.run-panel__log');
+      expect(log?.textContent).toHaveLength(200_000);
+      expect(log?.textContent).not.toContain('a');
+    });
   });
 });
