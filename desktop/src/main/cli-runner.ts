@@ -1,4 +1,4 @@
-import type { RunEvent, RunStatus, RunSummary } from '@handoff/shared';
+import type { RunEvent, RunLogSnapshot, RunStatus, RunSummary } from '@handoff/shared';
 
 export type TemplateVars = Readonly<Record<'prompt' | 'taskId' | 'title', string>>;
 
@@ -48,6 +48,7 @@ const MAX_LOG_CHARS = 1_000_000;
 interface RunEntry {
   summary: RunSummary;
   log: string;
+  lastSequence: number;
   child: ChildLike | null;
   cancelling: boolean;
 }
@@ -85,7 +86,13 @@ export class CliRunner {
       status: 'running',
       exitCode: null,
     };
-    this.runs.set(runId, { summary, log: '', child: null, cancelling: false });
+    this.runs.set(runId, {
+      summary,
+      log: '',
+      lastSequence: 0,
+      child: null,
+      cancelling: false,
+    });
 
     const child = this.spawnFn(req.command, req.args, { cwd: req.cwd, shell: false });
     const entry = this.runs.get(runId);
@@ -130,15 +137,18 @@ export class CliRunner {
     return [...this.runs.values()].map((r) => r.summary).reverse();
   }
 
-  getLog(runId: string): string {
-    return this.runs.get(runId)?.log ?? '';
+  getLogSnapshot(runId: string): RunLogSnapshot {
+    const entry = this.runs.get(runId);
+    if (!entry) return { log: '', lastSequence: 0 };
+    return { log: entry.log, lastSequence: entry.lastSequence };
   }
 
   private append(runId: string, type: 'stdout' | 'stderr', chunk: string): void {
     const entry = this.runs.get(runId);
     if (!entry) return;
     entry.log = (entry.log + chunk).slice(-MAX_LOG_CHARS);
-    this.emit({ runId, type, chunk });
+    entry.lastSequence += 1;
+    this.emit({ runId, type, chunk, sequence: entry.lastSequence });
   }
 
   private finish(runId: string, status: RunStatus, exitCode: number | null): void {

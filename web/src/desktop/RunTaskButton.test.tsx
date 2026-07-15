@@ -32,7 +32,7 @@ function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): HandoffDeskt
     runTask: vi.fn().mockResolvedValue({ runId: 'run-1' }),
     cancelRun: vi.fn(),
     listRuns: vi.fn().mockResolvedValue([]),
-    getRunLog: vi.fn().mockResolvedValue(''),
+    getRunLog: vi.fn().mockResolvedValue({ log: '', lastSequence: 0 }),
     onRunEvent: vi.fn().mockReturnValue(() => {}),
     getSettings: vi.fn().mockResolvedValue({
       apiBaseUrl: '',

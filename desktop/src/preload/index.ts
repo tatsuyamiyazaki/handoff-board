@@ -4,6 +4,7 @@ import type {
   DesktopSettings,
   HandoffDesktopBridge,
   RunEvent,
+  RunLogSnapshot,
   RunSummary,
   RunTaskRequest,
 } from '@handoff/shared';
@@ -13,7 +14,7 @@ const bridge = {
     ipcRenderer.invoke('run:start', req),
   cancelRun: (runId: string): Promise<void> => ipcRenderer.invoke('run:cancel', runId),
   listRuns: (): Promise<RunSummary[]> => ipcRenderer.invoke('run:list'),
-  getRunLog: (runId: string): Promise<string> => ipcRenderer.invoke('run:log', runId),
+  getRunLog: (runId: string): Promise<RunLogSnapshot> => ipcRenderer.invoke('run:log', runId),
   onRunEvent: (cb: (ev: RunEvent) => void): (() => void) => {
     const listener = (_e: unknown, ev: RunEvent): void => cb(ev);
     ipcRenderer.on('run:event', listener);

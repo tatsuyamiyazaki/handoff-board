@@ -66,12 +66,35 @@ describe('CliRunner', () => {
     expect(events[0]).toMatchObject({ runId, type: 'status', run: { status: 'running' } });
   });
 
-  it('stdout をログに蓄積しイベントを流す', () => {
+  it('stdout / stderr イベントに実行ごとの単調増加 sequence を付ける', () => {
     const { runner, events, children } = setup();
+    const first = runner.start(REQ);
+    const second = runner.start({ ...REQ, taskId: 't2' });
+
+    children[0].stdout.emit('data', Buffer.from('first-out'));
+    children[1].stderr.emit('data', Buffer.from('second-err'));
+    children[0].stderr.emit('data', Buffer.from('first-err'));
+    children[1].stdout.emit('data', Buffer.from('second-out'));
+
+    expect(events.filter((event) => event.type !== 'status')).toEqual([
+      { runId: first.runId, type: 'stdout', chunk: 'first-out', sequence: 1 },
+      { runId: second.runId, type: 'stderr', chunk: 'second-err', sequence: 1 },
+      { runId: first.runId, type: 'stderr', chunk: 'first-err', sequence: 2 },
+      { runId: second.runId, type: 'stdout', chunk: 'second-out', sequence: 2 },
+    ]);
+  });
+
+  it('ログ snapshot は同じ RunEntry のログと最終 sequence を返す', () => {
+    const { runner, children } = setup();
     const { runId } = runner.start(REQ);
     children[0].stdout.emit('data', Buffer.from('hello'));
-    expect(events).toContainEqual({ runId, type: 'stdout', chunk: 'hello' });
-    expect(runner.getLog(runId)).toBe('hello');
+    children[0].stderr.emit('data', Buffer.from(' error'));
+
+    expect(runner.getLogSnapshot(runId)).toEqual({
+      log: 'hello error',
+      lastSequence: 2,
+    });
+    expect(runner.getLogSnapshot('unknown')).toEqual({ log: '', lastSequence: 0 });
   });
 
   it('exit 0 → succeeded / exit 1 → failed', () => {
@@ -118,13 +141,13 @@ describe('CliRunner', () => {
     const { runId } = runner.start(REQ);
     children[0].emit('error', new Error('spawn claude ENOENT'));
     expect(runner.list().find((r) => r.runId === runId)?.status).toBe('failed');
-    expect(runner.getLog(runId)).toContain('ENOENT');
+    expect(runner.getLogSnapshot(runId).log).toContain('ENOENT');
   });
 
   it('ログは上限を超えた分から切り捨てる', () => {
     const { runner, children } = setup();
     const { runId } = runner.start(REQ);
     children[0].stdout.emit('data', 'x'.repeat(1_000_001));
-    expect(runner.getLog(runId).length).toBe(1_000_000);
+    expect(runner.getLogSnapshot(runId).log.length).toBe(1_000_000);
   });
 });

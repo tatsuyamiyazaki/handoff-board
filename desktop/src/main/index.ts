@@ -138,7 +138,7 @@ function wireIpc(): void {
   ipcMain.handle('run:log', (event, runId: unknown) => {
     assertTrustedSender(event);
     if (typeof runId !== 'string' || runId === '') throw new Error('runId が不正です');
-    return runner.getLog(runId);
+    return runner.getLogSnapshot(runId);
   });
 }
 

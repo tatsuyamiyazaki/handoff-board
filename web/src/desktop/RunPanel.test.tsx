@@ -10,7 +10,7 @@ function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): { bridge: Ha
     runTask: vi.fn(),
     cancelRun: vi.fn().mockResolvedValue(undefined),
     listRuns: vi.fn().mockResolvedValue([]),
-    getRunLog: vi.fn().mockResolvedValue(''),
+    getRunLog: vi.fn().mockResolvedValue({ log: '', lastSequence: 0 }),
     onRunEvent: vi.fn((cb: (ev: RunEvent) => void) => {
       handler = cb;
       return () => {
@@ -48,7 +48,7 @@ describe('RunPanel', () => {
 
     act(() => {
       emit({ runId: 'run-1', type: 'status', run: { ...RUNNING } });
-      emit({ runId: 'run-1', type: 'stdout', chunk: 'こんにちは\n' });
+      emit({ runId: 'run-1', type: 'stdout', chunk: 'こんにちは\n', sequence: 1 });
     });
 
     expect(screen.getByText('タスクA')).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe('RunPanel', () => {
     const finished = { ...RUNNING, status: 'failed' as const, exitCode: 1 };
     const { bridge } = makeBridge({
       listRuns: vi.fn().mockResolvedValue([finished]),
-      getRunLog: vi.fn().mockResolvedValue('previous error\n'),
+      getRunLog: vi.fn().mockResolvedValue({ log: 'previous error\n', lastSequence: 0 }),
     });
     render(<RunPanel bridge={bridge} />);
     expect(await screen.findByText('タスクA')).toBeInTheDocument();

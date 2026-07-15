@@ -39,9 +39,15 @@ export interface RunSummary {
   exitCode: number | null;
 }
 
+/** 現在のログ本文と、そのログに含まれる最後のイベント sequence。 */
+export interface RunLogSnapshot {
+  log: string;
+  lastSequence: number;
+}
+
 /** main → renderer へストリーミングされる実行イベント。 */
 export type RunEvent =
-  | { runId: string; type: 'stdout' | 'stderr'; chunk: string }
+  | { runId: string; type: 'stdout' | 'stderr'; chunk: string; sequence: number }
   | { runId: string; type: 'status'; run: RunSummary };
 
 /** 実行リクエスト。cwd と cliId の解決は renderer 側（RunDialog）で済ませてから渡す。 */
@@ -57,7 +63,7 @@ export interface HandoffDesktopBridge {
   runTask(req: RunTaskRequest): Promise<{ runId: string }>;
   cancelRun(runId: string): Promise<void>;
   listRuns(): Promise<RunSummary[]>;
-  getRunLog(runId: string): Promise<string>;
+  getRunLog(runId: string): Promise<RunLogSnapshot>;
   /** 実行イベントを購読する。戻り値は解除関数。 */
   onRunEvent(cb: (ev: RunEvent) => void): () => void;
   getSettings(): Promise<DesktopSettings>;
