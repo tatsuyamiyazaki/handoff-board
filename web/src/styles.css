@@ -183,7 +183,8 @@ body {
 .card__actions button,
 .create-dialog__actions button,
 .block-dialog__actions button,
-.unblock-dialog__actions button {
+.unblock-dialog__actions button,
+.settings-dialog__actions button {
   display: inline-grid;
   place-items: center;
   padding: 0;
@@ -202,7 +203,8 @@ body {
 .app__auth button,
 .create-dialog__actions button,
 .block-dialog__actions button,
-.unblock-dialog__actions button {
+.unblock-dialog__actions button,
+.settings-dialog__actions button {
   width: 40px;
   height: 40px;
 }
@@ -216,7 +218,8 @@ body {
 .card__actions button:hover:not(:disabled),
 .create-dialog__actions button:hover:not(:disabled),
 .block-dialog__actions button:hover:not(:disabled),
-.unblock-dialog__actions button:hover:not(:disabled) {
+.unblock-dialog__actions button:hover:not(:disabled),
+.settings-dialog__actions button:hover:not(:disabled) {
   background: var(--sky-blue);
   color: var(--white);
 }
@@ -225,7 +228,8 @@ body {
 .card__actions button:disabled,
 .create-dialog__actions button:disabled,
 .block-dialog__actions button:disabled,
-.unblock-dialog__actions button:disabled {
+.unblock-dialog__actions button:disabled,
+.settings-dialog__actions button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -622,7 +626,8 @@ body {
 /* Japanese dialog headings: Noto Sans JP bold (Jost has no JP glyphs). */
 .create-dialog__title,
 .block-dialog__title,
-.unblock-dialog__title {
+.unblock-dialog__title,
+.settings-dialog__title {
   margin: 0 0 var(--space-xs);
   font-family: var(--font-body);
   font-weight: 700;
@@ -635,7 +640,8 @@ body {
 
 .create-dialog__error,
 .block-dialog__error,
-.unblock-dialog__error {
+.unblock-dialog__error,
+.settings-dialog__error {
   margin: 0;
   padding: 12px 14px;
   border-left: 3px solid var(--error);
@@ -726,13 +732,15 @@ body {
  * hover darkens to bright-blue. The one button that signals commitment. */
 .create-dialog__actions button[type='submit'],
 .block-dialog__actions button[type='submit'],
-.unblock-dialog__actions button[type='submit'] {
+.unblock-dialog__actions button[type='submit'],
+.settings-dialog__actions .settings-dialog__save {
   background: var(--sky-blue);
   color: var(--white);
 }
 .create-dialog__actions button[type='submit']:hover:not(:disabled),
 .block-dialog__actions button[type='submit']:hover:not(:disabled),
-.unblock-dialog__actions button[type='submit']:hover:not(:disabled) {
+.unblock-dialog__actions button[type='submit']:hover:not(:disabled),
+.settings-dialog__actions .settings-dialog__save:hover:not(:disabled) {
   background: var(--bright-blue);
   border-color: var(--bright-blue);
 }
@@ -889,33 +897,52 @@ a {
   gap: var(--space-md);
 }
 
-.settings-dialog__title {
-  margin: 0;
+/* Section heading — Noto bold, quieter than the dialog title, with a hairline
+ * divider so the CLI / folder groups read as distinct sections. */
+.settings-dialog__section {
+  margin: var(--space-sm) 0 0;
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 16px;
   color: var(--text-dark);
 }
 
-.settings-dialog__error {
-  margin: 0;
-  padding: 12px 14px;
-  border-left: 3px solid var(--error);
-  background: #fbeceb;
-  color: var(--error);
-  border-radius: var(--rounded-input);
-}
-
-.settings-dialog fieldset {
+/* CLI 定義 rows mirror the create dialog's two-column field grid. */
+.settings-dialog__cli {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-sm);
+  gap: var(--space-sm) var(--space-md);
   border: 1px solid var(--line);
   border-radius: var(--rounded-input);
   padding: var(--space-md);
 }
 
+/* Owner checkboxes span the full width under the four inputs. */
+.settings-dialog__owner-field {
+  grid-column: 1 / -1;
+}
+
 .settings-dialog__owners {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-sm);
+  gap: var(--space-sm) var(--space-md);
+}
+
+.settings-dialog__owner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-dark);
+}
+
+.settings-dialog__cli-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .settings-dialog__folders {
@@ -931,16 +958,66 @@ a {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-sm);
+  border: 1px solid var(--line);
+  border-radius: var(--rounded-input);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.settings-dialog__folder-name {
+  font-family: var(--font-body);
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.settings-dialog__folder-path {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-gray);
+}
+
+/* Secondary text buttons — the brand's outline pill, text-labelled so
+ * 削除 / 変更 / CLI を追加 stay legible. Danger variant shifts to the error hue. */
+.settings-dialog__btn {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sky-blue);
+  background: var(--white);
+  border: 2px solid var(--sky-blue);
+  border-radius: var(--rounded-full);
+  padding: 6px 16px;
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.settings-dialog__btn:hover {
+  background: var(--sky-blue);
+  color: var(--white);
+}
+
+.settings-dialog__btn--danger {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.settings-dialog__btn--danger:hover {
+  background: var(--error);
+  color: var(--white);
 }
 
 .settings-dialog__actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-sm);
+  margin-top: var(--space-xs);
 }
 
 @media (max-width: 620px) {
-  .settings-dialog fieldset {
+  .settings-dialog__cli {
     grid-template-columns: 1fr;
   }
 }

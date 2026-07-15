@@ -8,6 +8,7 @@ import {
   type Owner,
 } from '@handoff/shared';
 import { setApiBase } from '../api-client';
+import { Icon } from '../components/icons';
 import { deriveAiOwners } from './owner-options';
 
 interface DesktopSettingsDialogProps {
@@ -147,9 +148,14 @@ export function DesktopSettingsDialog({ bridge, onClose }: DesktopSettingsDialog
               />
             </label>
 
-            <h3>CLI 定義</h3>
+            <h3 className="settings-dialog__section">CLI 定義</h3>
             {cliRows.map((row, i) => (
-              <fieldset key={i} role="group" aria-label={'CLI 定義 ' + String(i + 1)}>
+              <fieldset
+                key={i}
+                className="settings-dialog__cli"
+                role="group"
+                aria-label={'CLI 定義 ' + String(i + 1)}
+              >
                 <label className="field">
                   <span>ID</span>
                   <input
@@ -183,49 +189,63 @@ export function DesktopSettingsDialog({ bridge, onClose }: DesktopSettingsDialog
                     onChange={(e) => updateRow(i, { argsText: e.target.value })}
                   />
                 </label>
-                <span>既定にする owner:</span>
-                <div className="settings-dialog__owners">
-                  {AI_OWNERS.map((owner) => (
-                    <label key={owner}>
-                      <input
-                        type="checkbox"
-                        checked={row.defaultForOwners.includes(owner)}
-                        onChange={() => toggleOwner(i, owner)}
-                      />
-                      {owner}
-                    </label>
-                  ))}
+                <div className="field field--full settings-dialog__owner-field">
+                  <span>既定にする owner</span>
+                  <div className="settings-dialog__owners">
+                    {AI_OWNERS.map((owner) => (
+                      <label key={owner} className="settings-dialog__owner">
+                        <input
+                          type="checkbox"
+                          checked={row.defaultForOwners.includes(owner)}
+                          onChange={() => toggleOwner(i, owner)}
+                        />
+                        {owner}
+                      </label>
+                    ))}
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setCliRows((rows) => rows.filter((_, j) => j !== i))}
-                >
-                  削除
-                </button>
+                <div className="settings-dialog__cli-actions">
+                  <button
+                    type="button"
+                    className="settings-dialog__btn settings-dialog__btn--danger"
+                    onClick={() => setCliRows((rows) => rows.filter((_, j) => j !== i))}
+                  >
+                    削除
+                  </button>
+                </div>
               </fieldset>
             ))}
-            <button
-              type="button"
-              onClick={() =>
-                setCliRows((rows) => [
-                  ...rows,
-                  { id: '', name: '', command: '', argsText: '', defaultForOwners: [] },
-                ])
-              }
-            >
-              CLI を追加
-            </button>
+            <div>
+              <button
+                type="button"
+                className="settings-dialog__btn"
+                onClick={() =>
+                  setCliRows((rows) => [
+                    ...rows,
+                    { id: '', name: '', command: '', argsText: '', defaultForOwners: [] },
+                  ])
+                }
+              >
+                CLI を追加
+              </button>
+            </div>
 
-            <h3>project → フォルダ</h3>
+            <h3 className="settings-dialog__section">project → フォルダ</h3>
             <ul className="settings-dialog__folders">
               {Object.entries(folderMap).map(([project, folder]) => (
                 <li key={project}>
-                  <span>{project}</span>: <span>{folder}</span>
-                  <button type="button" onClick={() => void handleChangeFolder(project)}>
+                  <span className="settings-dialog__folder-name">{project}</span>
+                  <span className="settings-dialog__folder-path">{folder}</span>
+                  <button
+                    type="button"
+                    className="settings-dialog__btn"
+                    onClick={() => void handleChangeFolder(project)}
+                  >
                     変更
                   </button>
                   <button
                     type="button"
+                    className="settings-dialog__btn settings-dialog__btn--danger"
                     onClick={() =>
                       setFolderMap((m) =>
                         Object.fromEntries(Object.entries(m).filter(([k]) => k !== project)),
@@ -239,11 +259,17 @@ export function DesktopSettingsDialog({ bridge, onClose }: DesktopSettingsDialog
             </ul>
 
             <div className="settings-dialog__actions">
-              <button type="button" onClick={onClose}>
-                キャンセル
+              <button type="button" aria-label="キャンセル" title="キャンセル" onClick={onClose}>
+                <Icon name="x" />
               </button>
-              <button type="button" onClick={() => void handleSave()}>
-                保存
+              <button
+                type="button"
+                className="settings-dialog__save"
+                aria-label="保存"
+                title="保存"
+                onClick={() => void handleSave()}
+              >
+                <Icon name="check" />
               </button>
             </div>
           </>
