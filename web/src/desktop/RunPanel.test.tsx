@@ -3,17 +3,31 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { HandoffDesktopBridge, RunEvent } from '@handoff/shared';
 import { RunPanel } from './RunPanel';
+import { BoundedRunLogBuffer } from './useRunEvents';
 
-function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+} {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((fulfill) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((fulfill, rejectPromise) => {
     resolve = fulfill;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
-function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): { bridge: HandoffDesktopBridge; emit: (ev: RunEvent) => void } {
+function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): {
+  bridge: HandoffDesktopBridge;
+  emit: (ev: RunEvent) => void;
+  unsubscribe: ReturnType<typeof vi.fn>;
+} {
   let handler: ((ev: RunEvent) => void) | null = null;
+  const unsubscribe = vi.fn(() => {
+    handler = null;
+  });
   const bridge = {
     runTask: vi.fn(),
     cancelRun: vi.fn().mockResolvedValue(undefined),
@@ -21,9 +35,7 @@ function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): { bridge: Ha
     getRunLog: vi.fn().mockResolvedValue({ log: '', lastSequence: 0 }),
     onRunEvent: vi.fn((cb: (ev: RunEvent) => void) => {
       handler = cb;
-      return () => {
-        handler = null;
-      };
+      return unsubscribe;
     }),
     getSettings: vi.fn(),
     setSettings: vi.fn(),
@@ -31,7 +43,7 @@ function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): { bridge: Ha
     signIn: vi.fn(),
     ...overrides,
   } as unknown as HandoffDesktopBridge;
-  return { bridge, emit: (ev) => handler?.(ev) };
+  return { bridge, emit: (ev) => handler?.(ev), unsubscribe };
 }
 
 const RUNNING = {
@@ -42,6 +54,25 @@ const RUNNING = {
   status: 'running',
   exitCode: null,
 } as const;
+
+describe('BoundedRunLogBuffer', () => {
+  it('実行ごとに文字数を制限し、途中で切った chunk の sequence を保持する', () => {
+    const buffer = new BoundedRunLogBuffer(5);
+
+    buffer.append('run-1', { chunk: 'abcd', sequence: 1 });
+    buffer.append('run-2', { chunk: '12345', sequence: 1 });
+    buffer.append('run-1', { chunk: 'efgh', sequence: 2 });
+
+    expect(buffer.get('run-1')).toEqual([
+      { chunk: 'd', sequence: 1 },
+      { chunk: 'efgh', sequence: 2 },
+    ]);
+    expect(buffer.get('run-2')).toEqual([{ chunk: '12345', sequence: 1 }]);
+
+    buffer.clear();
+    expect([...buffer.entries()]).toEqual([]);
+  });
+});
 
 describe('RunPanel', () => {
   it('ブリッジが無ければ何も描画しない', () => {
@@ -158,5 +189,63 @@ describe('RunPanel', () => {
       expect(log?.textContent).toHaveLength(200_000);
       expect(log?.textContent).not.toContain('a');
     });
+  });
+
+  it('一部の snapshot 取得が失敗しても成功分と各 buffered log を復元する', async () => {
+    const successfulSnapshot = deferred<{ log: string; lastSequence: number }>();
+    const failedSnapshot = deferred<{ log: string; lastSequence: number }>();
+    const successfulRun = { ...RUNNING, runId: 'run-success', taskTitle: '成功実行' };
+    const failedRun = { ...RUNNING, runId: 'run-failed', taskTitle: '失敗実行' };
+    const { bridge, emit } = makeBridge({
+      listRuns: vi.fn().mockResolvedValue([successfulRun, failedRun]),
+      getRunLog: vi.fn((runId: string) =>
+        runId === 'run-success' ? successfulSnapshot.promise : failedSnapshot.promise,
+      ),
+    });
+    render(<RunPanel bridge={bridge} />);
+    await waitFor(() => expect(bridge.getRunLog).toHaveBeenCalledTimes(2));
+
+    act(() => {
+      emit({ runId: 'run-success', type: 'stdout', chunk: 'already saved\n', sequence: 1 });
+      emit({ runId: 'run-success', type: 'stdout', chunk: 'success live\n', sequence: 2 });
+      emit({ runId: 'run-failed', type: 'stderr', chunk: 'failed live\n', sequence: 1 });
+    });
+    await act(async () => {
+      successfulSnapshot.resolve({ log: 'successful snapshot\n', lastSequence: 1 });
+      failedSnapshot.reject(new Error('snapshot unavailable'));
+      await Promise.allSettled([successfulSnapshot.promise, failedSnapshot.promise]);
+    });
+
+    await waitFor(() => {
+      const successfulLog = screen.getByText('成功実行').closest('li')?.querySelector('pre');
+      const failedLog = screen.getByText('失敗実行').closest('li')?.querySelector('pre');
+      expect(successfulLog?.textContent).toBe('successful snapshot\nsuccess live\n');
+      expect(failedLog?.textContent).toBe('failed live\n');
+    });
+  });
+
+  it('初期化中に unmount すると buffer と購読を破棄し、遅い snapshot を無視する', async () => {
+    const snapshot = deferred<{ log: string; lastSequence: number }>();
+    const clearSpy = vi.spyOn(BoundedRunLogBuffer.prototype, 'clear');
+    const { bridge, emit, unsubscribe } = makeBridge({
+      listRuns: vi.fn().mockResolvedValue([RUNNING]),
+      getRunLog: vi.fn().mockReturnValue(snapshot.promise),
+    });
+    const { unmount } = render(<RunPanel bridge={bridge} />);
+    await waitFor(() => expect(bridge.getRunLog).toHaveBeenCalledWith('run-1'));
+    act(() => {
+      emit({ runId: 'run-1', type: 'stdout', chunk: 'pending live\n', sequence: 1 });
+    });
+
+    unmount();
+    expect(clearSpy).toHaveBeenCalledTimes(1);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      snapshot.resolve({ log: 'late snapshot\n', lastSequence: 1 });
+      await snapshot.promise;
+    });
+    expect(screen.queryByLabelText('CLI 実行ログ')).not.toBeInTheDocument();
+    clearSpy.mockRestore();
   });
 });
