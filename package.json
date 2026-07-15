@@ -10,6 +10,7 @@
     "dev:api": "pnpm --filter @handoff/api dev",
     "dev:web": "pnpm --filter @handoff/web dev",
     "dev:desktop": "pnpm --filter @handoff/desktop dev",
+    "dev:desktop:bundle": "pnpm --filter @handoff/web build && pnpm --filter @handoff/desktop dev:bundle",
     "package:desktop": "pnpm --filter @handoff/web build && pnpm --filter @handoff/desktop package"
   },
   "devDependencies": {

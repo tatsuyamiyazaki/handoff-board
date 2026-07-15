@@ -29,7 +29,8 @@ ESM throughout; imports use explicit `.js` extensions; tsconfig is `moduleResolu
 | Typecheck all | `pnpm -r typecheck` |
 | Dev API | `pnpm dev:api` (no Firestore emulator → falls back to in-memory + `devSeed`) |
 | Dev web | `pnpm dev:web` |
-| Dev desktop | `pnpm dev:desktop`（先に `pnpm --filter @handoff/web build` か dev server + `HANDOFF_DEV_SERVER_URL`） |
+| Dev desktop（HMR推奨） | `pnpm dev:desktop`（`desktop/dev.mjs` が Vite dev server を起動→応答後に Electron を `HANDOFF_DEV_SERVER_URL` 指定で起動。renderer は HMR で即反映、web/dist ビルド不要） |
+| Dev desktop（バンドル版） | `pnpm dev:desktop:bundle`（web を再ビルドして `web/dist` を `app://` で読み込む。停留バンドル回避のため毎回 web を先にビルド） |
 | Web build | `pnpm --filter @handoff/web build` |
 | Desktop インストーラ | `pnpm package:desktop` |
 | E2E | `pnpm --filter @handoff/web e2e` |
