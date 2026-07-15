@@ -1,9 +1,7 @@
 import { build } from 'esbuild';
+import { createDesktopBuildDefines, loadDesktopReleaseEnv } from './release-env.mjs';
 
-const define = {
-  __GOOGLE_CLIENT_ID__: JSON.stringify(process.env.HANDOFF_GOOGLE_CLIENT_ID ?? ''),
-  __GOOGLE_CLIENT_SECRET__: JSON.stringify(process.env.HANDOFF_GOOGLE_CLIENT_SECRET ?? ''),
-};
+const define = createDesktopBuildDefines(loadDesktopReleaseEnv());
 
 await build({
   entryPoints: ['src/main/index.ts'],

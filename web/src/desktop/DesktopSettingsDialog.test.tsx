@@ -106,9 +106,10 @@ describe('DesktopSettingsDialog', () => {
     const rows = screen.getAllByRole('group', { name: /CLI 定義/ });
     const newRow = rows[rows.length - 1];
 
-    for (const owner of OWNERS.filter(isAiOwner)) {
-      expect(within(newRow).getByRole('checkbox', { name: owner })).toBeInTheDocument();
-    }
+    const ownerLabels = within(newRow)
+      .getAllByRole('checkbox')
+      .map((checkbox) => checkbox.closest('label')?.textContent?.trim());
+    expect(ownerLabels).toEqual(OWNERS.filter(isAiOwner));
   });
 
   it('保存失敗（検証エラー）はダイアログ内に表示する', async () => {

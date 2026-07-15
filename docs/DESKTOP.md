@@ -31,6 +31,8 @@ Google OAuth のループバック認証には、Firebase Authentication と**�
 - `HANDOFF_GOOGLE_CLIENT_ID`（必須）
 - `HANDOFF_GOOGLE_CLIENT_SECRET`（任意。Google の installed-app flow でクライアントに発行されている場合のみ）
 
+値は起動シェルの環境変数、または `web/.env`、`web/.env.local`、`web/.env.production`、`web/.env.production.local` で指定できます。env ファイルはこの順に後の値を優先して読み込み、シェルに設定した値を最優先します。`package:desktop` のリリース事前検査と Electron ビルドは同じ resolver を使うため、検査した OAuth 値と esbuild が埋め込む値は一致します。
+
 `HANDOFF_GOOGLE_CLIENT_SECRET` はデスクトップアプリでは秘匿できない任意値であり、`desktop/check-release-env.mjs` の必須変数リストには追加しません。
 
 renderer の Firebase 認証と API 接続には `web/.env` の `VITE_FIREBASE_*` および `VITE_API_BASE` が必要です。必要なキーはルートの `.env.example` も参照してください。
