@@ -45,6 +45,12 @@ export interface StartRequest {
 
 const MAX_LOG_CHARS = 1_000_000;
 
+function isProcessAlreadyExitedError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null || !('code' in err)) return false;
+  const { code } = err as { code: unknown };
+  return code === 128 || code === '128';
+}
+
 interface RunEntry {
   summary: RunSummary;
   log: string;
@@ -125,6 +131,10 @@ export class CliRunner {
       await this.killTree(entry.child.pid);
       this.finish(runId, 'cancelled', null);
     } catch (err: unknown) {
+      if (isProcessAlreadyExitedError(err)) {
+        this.finish(runId, 'cancelled', null);
+        return;
+      }
       entry.cancelling = false;
       const message = err instanceof Error ? err.message : String(err);
       this.append(runId, 'stderr', 'キャンセルに失敗しました: ' + message + '\n');

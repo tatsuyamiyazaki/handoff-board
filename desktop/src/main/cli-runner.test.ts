@@ -4,9 +4,25 @@ import type { RunEvent } from '@handoff/shared';
 import { CliRunner, expandArgs, quoteForCmd, renderPrompt, type ChildLike } from './cli-runner.js';
 
 class FakeChild extends EventEmitter {
-  pid = 1234;
+  pid: number | undefined = 1234;
   stdout = new EventEmitter();
   stderr = new EventEmitter();
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+function terminalStatusEvents(events: RunEvent[], runId: string) {
+  return events.filter(
+    (event) => event.runId === runId && event.type === 'status' && event.run.status !== 'running',
+  );
 }
 
 function setup() {
@@ -134,6 +150,105 @@ describe('CliRunner', () => {
     expect(killTree).toHaveBeenCalledWith(1234);
     children[0].emit('exit', 1);
     expect(runner.list().find((r) => r.runId === runId)?.status).toBe('cancelled');
+  });
+
+  it('killTree 待機中に exit してもキャンセル要求が勝ち、terminal status は一度だけ発行する', async () => {
+    const killPending = deferred<void>();
+    const { runner, killTree, events, children } = setup();
+    killTree.mockReturnValueOnce(killPending.promise);
+    const { runId } = runner.start(REQ);
+
+    const cancelPromise = runner.cancel(runId);
+    children[0].emit('exit', 0);
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('running');
+
+    killPending.resolve();
+    await cancelPromise;
+    children[0].emit('exit', 1);
+
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('cancelled');
+    expect(terminalStatusEvents(events, runId)).toHaveLength(1);
+  });
+
+  it.each([128, '128'])('killTree の code %s は cancelled として扱い reject しない', async (code) => {
+    const killPending = deferred<void>();
+    const { runner, killTree, events, children } = setup();
+    killTree.mockReturnValueOnce(killPending.promise);
+    const { runId } = runner.start(REQ);
+    const error = Object.assign(new Error('process already exited'), { code });
+
+    const cancelPromise = runner.cancel(runId);
+    children[0].emit('exit', 1);
+    killPending.reject(error);
+
+    await expect(cancelPromise).resolves.toBeUndefined();
+    children[0].emit('exit', 0);
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('cancelled');
+    expect(runner.getLogSnapshot(runId).log).toBe('');
+    expect(terminalStatusEvents(events, runId)).toHaveLength(1);
+  });
+
+  it('killTree の code 128 以外の失敗はログを残して failed にし、cancel を reject する', async () => {
+    const killPending = deferred<void>();
+    const { runner, killTree, events, children } = setup();
+    killTree.mockReturnValueOnce(killPending.promise);
+    const { runId } = runner.start(REQ);
+    const error = Object.assign(new Error('access denied'), { code: 'EPERM' });
+
+    const cancelPromise = runner.cancel(runId);
+    children[0].emit('exit', 0);
+    killPending.reject(error);
+
+    await expect(cancelPromise).rejects.toBe(error);
+    children[0].emit('exit', 0);
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('failed');
+    expect(runner.getLogSnapshot(runId).log).toContain('キャンセルに失敗しました: access denied');
+    expect(terminalStatusEvents(events, runId)).toHaveLength(1);
+  });
+
+  it('キャンセル処理中の再度の cancel は no-op で killTree を一度だけ呼ぶ', async () => {
+    const killPending = deferred<void>();
+    const { runner, killTree, events, children } = setup();
+    killTree.mockReturnValueOnce(killPending.promise);
+    const { runId } = runner.start(REQ);
+
+    const firstCancel = runner.cancel(runId);
+    await runner.cancel(runId);
+    children[0].emit('exit', 1);
+    expect(killTree).toHaveBeenCalledTimes(1);
+
+    killPending.resolve();
+    await firstCancel;
+    children[0].emit('exit', 1);
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('cancelled');
+    expect(terminalStatusEvents(events, runId)).toHaveLength(1);
+  });
+
+  it('pid がない child は killTree を呼ばず cancelled にする', async () => {
+    const { runner, killTree, events, children } = setup();
+    const { runId } = runner.start(REQ);
+    children[0].pid = undefined;
+
+    await runner.cancel(runId);
+    children[0].emit('exit', 1);
+
+    expect(killTree).not.toHaveBeenCalled();
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('cancelled');
+    expect(terminalStatusEvents(events, runId)).toHaveLength(1);
+  });
+
+  it('終了済みまたは unknown の run の cancel は no-op', async () => {
+    const { runner, killTree, events, children } = setup();
+    const { runId } = runner.start(REQ);
+    children[0].emit('exit', 0);
+
+    await runner.cancel(runId);
+    await runner.cancel('unknown');
+    children[0].emit('exit', 1);
+
+    expect(killTree).not.toHaveBeenCalled();
+    expect(runner.list().find((run) => run.runId === runId)?.status).toBe('succeeded');
+    expect(terminalStatusEvents(events, runId)).toHaveLength(1);
   });
 
   it('spawn の error イベント（ENOENT 等）で failed になりメッセージがログに残る', () => {
