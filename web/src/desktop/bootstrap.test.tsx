@@ -1,7 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { DesktopSettings, HandoffDesktopBridge } from '@handoff/shared';
-import { BootstrapErrorBanner, bootstrapDesktop } from './bootstrap';
+import {
+  BootstrapErrorBanner,
+  DesktopRoot,
+  bootstrapDesktop,
+} from './bootstrap';
 
 const SETTINGS: DesktopSettings = {
   apiBaseUrl: 'https://api.example.com',
@@ -26,15 +30,18 @@ describe('bootstrapDesktop', () => {
   });
 
   it('設定取得に失敗しても例外を投げず、日本語のエラーを返す', async () => {
+    const cause = new Error('IPC channel closed');
     const bridge: SettingsBridge = {
-      getSettings: vi.fn().mockRejectedValue(new Error('IPC channel closed')),
+      getSettings: vi.fn().mockRejectedValue(cause),
     };
+    const logError = vi.fn();
 
     await expect(
-      bootstrapDesktop({ bridge, setApiBase: vi.fn() }),
+      bootstrapDesktop({ bridge, setApiBase: vi.fn(), logError }),
     ).resolves.toBe(
-      'デスクトップ設定の読み込みに失敗しました: IPC channel closed',
+      'デスクトップアプリの初期化に失敗しました。一部の機能を利用できない可能性があります。',
     );
+    expect(logError).toHaveBeenCalledWith('Desktop bootstrap failed', cause);
   });
 
   it('ブリッジがなければ API ベース URL を変更せず、エラーなしで完了する', async () => {
@@ -55,5 +62,30 @@ describe('BootstrapErrorBanner', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent(message);
     expect(screen.getByRole('alert')).toHaveClass('app__error');
+  });
+});
+
+describe('DesktopRoot', () => {
+  it('初期化に失敗しても alert とアプリ本体をともに表示する', async () => {
+    const bridge: SettingsBridge = {
+      getSettings: vi.fn().mockRejectedValue(new Error('secret IPC detail')),
+    };
+    const error = await bootstrapDesktop({
+      bridge,
+      setApiBase: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    render(
+      <DesktopRoot bootstrapError={error}>
+        <div>アプリ本体</div>
+      </DesktopRoot>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'デスクトップアプリの初期化に失敗しました',
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent('secret IPC detail');
+    expect(screen.getByText('アプリ本体')).toBeInTheDocument();
   });
 });

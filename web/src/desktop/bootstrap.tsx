@@ -1,16 +1,22 @@
 import type { HandoffDesktopBridge } from '@handoff/shared';
+import type { ReactNode } from 'react';
 
 type SettingsBridge = Pick<HandoffDesktopBridge, 'getSettings'>;
 
 interface BootstrapDesktopDependencies {
   bridge: SettingsBridge | null;
   setApiBase: (url: string) => void;
+  logError?: (message: string, cause: unknown) => void;
 }
+
+const BOOTSTRAP_ERROR =
+  'デスクトップアプリの初期化に失敗しました。一部の機能を利用できない可能性があります。';
 
 /** デスクトップ設定を API クライアントへ反映し、描画可能なエラーへ変換する。 */
 export async function bootstrapDesktop({
   bridge,
   setApiBase,
+  logError = (message, cause) => console.error(message, cause),
 }: BootstrapDesktopDependencies): Promise<string | null> {
   if (!bridge) return null;
 
@@ -19,8 +25,8 @@ export async function bootstrapDesktop({
     setApiBase(settings.apiBaseUrl);
     return null;
   } catch (error: unknown) {
-    const detail = error instanceof Error ? error.message : String(error);
-    return `デスクトップ設定の読み込みに失敗しました: ${detail}`;
+    logError('Desktop bootstrap failed', error);
+    return BOOTSTRAP_ERROR;
   }
 }
 
@@ -30,5 +36,21 @@ export function BootstrapErrorBanner({ message }: { message: string }) {
     <p role="alert" className="app__error">
       {message}
     </p>
+  );
+}
+
+/** App が所有する main ランドマークを重複させず、初期化通知と本体を合成する。 */
+export function DesktopRoot({
+  bootstrapError,
+  children,
+}: {
+  bootstrapError: string | null;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      {bootstrapError && <BootstrapErrorBanner message={bootstrapError} />}
+      {children}
+    </>
   );
 }
