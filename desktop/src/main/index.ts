@@ -12,14 +12,15 @@ import {
 import { execFile, execFileSync } from 'node:child_process';
 import crossSpawn from 'cross-spawn';
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { signInWithGoogle } from './auth.js';
 import { CliRunner, expandArgs, renderPrompt } from './cli-runner.js';
 import { isTrustedRendererUrl, parseRunTaskRequest, resolveAppAsset } from './security-core.js';
 import { SettingsStore } from './settings.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+// build.mjs が CJS 形式で出力するため __dirname は Node が自動的に注入する（@types/node の宣言をそのまま使う）
+// （cross-spawn 等の CJS 依存を ESM 出力にバンドルすると require() が実行時に解決できず落ちるため）。
 
 function webDistDir(): string {
   return app.isPackaged
