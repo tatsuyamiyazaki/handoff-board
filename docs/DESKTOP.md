@@ -6,6 +6,8 @@ Handoff デスクトップアプリは、クラウド上のタスクボードを
 
 ## 開発
 
+このプロジェクトは `pnpm 11.13.0` を必要とし、ルート `package.json` の `packageManager` も `pnpm@11.13.0` に固定しています。Corepack などでこのバージョンを有効にしてから依存関係をインストールしてください。
+
 依存関係をインストールした後、Web の開発サーバーと Electron を別々のターミナルで起動します。
 
 ```powershell
@@ -24,10 +26,12 @@ pnpm dev:desktop
 
 ## 環境変数と外部設定
 
-Google OAuth のループバック認証には、GCP コンソールの「認証情報」から「OAuth クライアント ID（デスクトップ アプリ）」を作成し、次を設定します。
+Google OAuth のループバック認証には、Firebase Authentication と**同じ GCP プロジェクト**の「認証情報」から「OAuth クライアント ID（デスクトップ アプリ）」を作成します。Firebase Authentication のログインプロバイダでは Google を有効にしてください。別プロジェクトの OAuth クライアントを使うと、OAuth のコード交換まで成功しても Firebase の認証で拒否されます。
 
 - `HANDOFF_GOOGLE_CLIENT_ID`（必須）
-- `HANDOFF_GOOGLE_CLIENT_SECRET`（クライアントで発行されている場合）
+- `HANDOFF_GOOGLE_CLIENT_SECRET`（任意。Google の installed-app flow でクライアントに発行されている場合のみ）
+
+`HANDOFF_GOOGLE_CLIENT_SECRET` はデスクトップアプリでは秘匿できない任意値であり、`desktop/check-release-env.mjs` の必須変数リストには追加しません。
 
 renderer の Firebase 認証と API 接続には `web/.env` の `VITE_FIREBASE_*` および `VITE_API_BASE` が必要です。必要なキーはルートの `.env.example` も参照してください。
 
@@ -48,6 +52,13 @@ pnpm package:desktop
 ```
 
 必要なリリース環境変数が不足している場合は開始前に失敗します。Web と Electron をビルドし、NSIS インストーラーを `desktop/release/` に生成します。
+
+リリース前には、実機で次の両方を確認するスモークテストを必須（リリースブロッキング）とします。
+
+1. システムブラウザで Google にログインし、ループバック URL で認可コードを受け取り、トークン交換まで成功する。
+2. 取得した Google 資格情報を使う Firebase `signInWithCredential` が成功し、認証済み画面まで進む。
+
+コード交換は成功するのに Firebase で `auth/invalid-credential` になる場合は、まずデスクトップ OAuth クライアントと Firebase Authentication が同じ GCP プロジェクトかを確認し、あわせて Firebase の Google プロバイダが有効かを確認してください。プロジェクト不一致が代表的な原因です。
 
 ## 現在の制約
 

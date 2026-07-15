@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
-import type { CliDefinition, DesktopSettings, HandoffDesktopBridge, Owner } from '@handoff/shared';
+import {
+  OWNERS,
+  isAiOwner,
+  type CliDefinition,
+  type DesktopSettings,
+  type HandoffDesktopBridge,
+  type Owner,
+} from '@handoff/shared';
 import { setApiBase } from '../api-client';
+import { deriveAiOwners } from './owner-options';
 
 interface DesktopSettingsDialogProps {
   bridge: HandoffDesktopBridge;
@@ -16,7 +24,7 @@ interface CliRow {
   defaultForOwners: Owner[];
 }
 
-const AI_OWNERS: Owner[] = ['cowork', 'claude-code', 'codex'];
+const AI_OWNERS = deriveAiOwners(OWNERS, isAiOwner);
 
 function toRow(def: CliDefinition): CliRow {
   return {

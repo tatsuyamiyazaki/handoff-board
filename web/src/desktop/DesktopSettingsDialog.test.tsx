@@ -1,7 +1,12 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { DesktopSettings, HandoffDesktopBridge } from '@handoff/shared';
+import {
+  OWNERS,
+  isAiOwner,
+  type DesktopSettings,
+  type HandoffDesktopBridge,
+} from '@handoff/shared';
 import { DesktopSettingsDialog } from './DesktopSettingsDialog';
 
 const SETTINGS: DesktopSettings = {
@@ -90,6 +95,20 @@ describe('DesktopSettingsDialog', () => {
         }),
       ),
     );
+  });
+
+  it('追加した CLI 定義に現在の AI owner をすべて表示する', async () => {
+    const user = userEvent.setup();
+    render(<DesktopSettingsDialog bridge={makeBridge()} onClose={() => {}} />);
+    await screen.findByLabelText('API ベース URL');
+
+    await user.click(screen.getByRole('button', { name: 'CLI を追加' }));
+    const rows = screen.getAllByRole('group', { name: /CLI 定義/ });
+    const newRow = rows[rows.length - 1];
+
+    for (const owner of OWNERS.filter(isAiOwner)) {
+      expect(within(newRow).getByRole('checkbox', { name: owner })).toBeInTheDocument();
+    }
   });
 
   it('保存失敗（検証エラー）はダイアログ内に表示する', async () => {
