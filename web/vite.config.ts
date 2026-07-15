@@ -1,6 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import { productionCspPlugin } from './src/csp';
+import { selectProductionCspPlugins } from './src/csp';
 
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -8,7 +8,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [
       react(),
-      ...(command === 'build' ? [productionCspPlugin(env.VITE_FIREBASE_AUTH_DOMAIN)] : []),
+      ...selectProductionCspPlugins(command, env.VITE_FIREBASE_AUTH_DOMAIN),
     ],
     server: { port: 5173 },
     test: {
