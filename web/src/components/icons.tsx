@@ -11,7 +11,8 @@ export type IconName =
   | 'unlock' // 解除
   | 'archive' // アーカイブ
   | 'pencil' // 編集
-  | 'plus' // 新規タスク
+  | 'plus' // 新規タスク / 追加
+  | 'minus' // 削除（行の除去）
   | 'log-in' // サインイン
   | 'log-out' // サインアウト
   | 'x' // キャンセル / 閉じる
@@ -59,6 +60,7 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M5 12h14" />
     </>
   ),
+  minus: <path d="M5 12h14" />,
   'log-in': (
     <>
       <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
