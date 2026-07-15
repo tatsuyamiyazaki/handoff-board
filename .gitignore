@@ -150,3 +150,9 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Local Git worktrees
+.worktrees/
+
+# Electron Builder output
+/desktop/release/
