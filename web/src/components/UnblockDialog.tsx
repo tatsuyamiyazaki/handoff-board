@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type { Task } from '@handoff/shared';
 import { transitionTask as defaultTransitionTask, type TransitionInput } from '../api-client';
 import { Icon } from './icons';
@@ -54,7 +55,7 @@ export function UnblockDialog({
     }
   }
 
-  return (
+  return createPortal(
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <form
         className="unblock-dialog"
@@ -99,6 +100,7 @@ export function UnblockDialog({
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }
