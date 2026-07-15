@@ -1,6 +1,22 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
-import { buildAuthUrl, createPkcePair, exchangeCode, parseCallback } from './auth-core.js';
+import {
+  buildAuthUrl,
+  createOneShotGate,
+  createPkcePair,
+  exchangeCode,
+  parseCallback,
+} from './auth-core.js';
+
+describe('createOneShotGate', () => {
+  it('最初の claim だけを受け入れる', () => {
+    const gate = createOneShotGate();
+
+    expect(gate.claim()).toBe(true);
+    expect(gate.claim()).toBe(false);
+    expect(gate.claim()).toBe(false);
+  });
+});
 
 describe('createPkcePair', () => {
   it('verifier の S256 ハッシュ（base64url）が challenge になる', () => {

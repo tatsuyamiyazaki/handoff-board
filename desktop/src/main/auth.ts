@@ -3,7 +3,13 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { randomBytes } from 'node:crypto';
 import { shell } from 'electron';
-import { buildAuthUrl, createPkcePair, exchangeCode, parseCallback } from './auth-core.js';
+import {
+  buildAuthUrl,
+  createOneShotGate,
+  createPkcePair,
+  exchangeCode,
+  parseCallback,
+} from './auth-core.js';
 
 // build.mjs の define で注入される（コミットしない。env HANDOFF_GOOGLE_CLIENT_ID / _SECRET）
 declare const __GOOGLE_CLIENT_ID__: string;
@@ -20,9 +26,15 @@ export async function signInWithGoogle(): Promise<{ idToken: string }> {
   }
   const { verifier, challenge } = createPkcePair();
   const state = randomBytes(16).toString('base64url');
+  const callbackGate = createOneShotGate();
 
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
+      if (!callbackGate.claim()) {
+        res.statusCode = 204;
+        res.end();
+        return;
+      }
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       try {
         const { code } = parseCallback(req.url ?? '', state);

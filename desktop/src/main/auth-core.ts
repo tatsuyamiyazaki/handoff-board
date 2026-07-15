@@ -6,6 +6,17 @@ export interface PkcePair {
   challenge: string;
 }
 
+export function createOneShotGate(): { claim: () => boolean } {
+  let claimed = false;
+  return {
+    claim: () => {
+      if (claimed) return false;
+      claimed = true;
+      return true;
+    },
+  };
+}
+
 export function createPkcePair(random: () => Buffer = () => randomBytes(32)): PkcePair {
   const verifier = random().toString('base64url');
   const challenge = createHash('sha256').update(verifier).digest('base64url');
