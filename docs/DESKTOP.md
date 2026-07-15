@@ -8,20 +8,18 @@ Handoff デスクトップアプリは、クラウド上のタスクボードを
 
 このプロジェクトは `pnpm 11.13.0` を必要とし、ルート `package.json` の `packageManager` も `pnpm@11.13.0` に固定しています。Corepack などでこのバージョンを有効にしてから依存関係をインストールしてください。
 
-依存関係をインストールした後、Web の開発サーバーと Electron を別々のターミナルで起動します。
+依存関係をインストールした後、開発時は次の 1 コマンドで起動します（推奨）。
 
 ```powershell
-pnpm dev:web
-
-$env:HANDOFF_DEV_SERVER_URL="http://localhost:5173"
 pnpm dev:desktop
 ```
 
-静的ビルドを Electron から読む場合は、次のコマンドを実行します。
+`desktop/dev.mjs` が Vite dev server を起動し、応答を確認してから Electron を `HANDOFF_DEV_SERVER_URL=http://localhost:5173` 指定で起動します。renderer の変更は HMR で即時反映され、`web/dist` を手動でビルドする必要はありません。ウィンドウを閉じると Vite dev server も停止します。
+
+> **注意:** `pnpm dev:desktop`（HMR）ではなく静的バンドルを Electron から読み込む場合は、必ず web を先にビルドしてください。停留した古い `web/dist` を読み込むと、renderer が旧コード（例: ブリッジ非対応のサインイン）になり `auth/popup-blocked` などの不整合が起きます。バンドル版の起動は次のコマンドが web の再ビルドまで含めて行います。
 
 ```powershell
-pnpm --filter @handoff/web build
-pnpm dev:desktop
+pnpm dev:desktop:bundle
 ```
 
 ## 環境変数と外部設定
