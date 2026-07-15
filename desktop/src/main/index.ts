@@ -28,6 +28,14 @@ function webDistDir(): string {
     : join(__dirname, '..', '..', '..', 'web', 'dist');
 }
 
+// ウィンドウ/タスクバー用アイコン。パッケージ後は extraResources の web/ に、
+// 開発時は web/public のソース画像を使う（HMR で web/dist が無い場合にも解決する）。
+function appIconPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'web', 'icon-1024.png')
+    : join(__dirname, '..', '..', '..', 'web', 'public', 'icon-1024.png');
+}
+
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
@@ -147,6 +155,7 @@ function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
+    icon: appIconPath(),
     webPreferences: {
       preload: join(__dirname, '..', 'preload', 'index.cjs'),
       contextIsolation: true,
