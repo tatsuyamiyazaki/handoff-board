@@ -3,3 +3,4 @@ export * from './envelope.js';
 export * from './create-task.js';
 export * from './transition.js';
 export * from './edit-task.js';
+export * from './desktop-bridge.js';

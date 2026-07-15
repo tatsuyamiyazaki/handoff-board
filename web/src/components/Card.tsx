@@ -5,6 +5,7 @@ import { UnblockDialog } from './UnblockDialog';
 import { HandoffDialog } from './HandoffDialog';
 import { EditDialog } from './EditDialog';
 import { DeleteDialog } from './DeleteDialog';
+import { RunTaskButton } from '../desktop/RunTaskButton';
 import { Icon } from './icons';
 import {
   completeTask as defaultCompleteTask,
@@ -127,6 +128,7 @@ export function Card({
       {/* 2段目: タイトル。 */}
       <h3 className="card__title">{task.title}</h3>
       <div className="card__actions">
+        <RunTaskButton task={task} />
         {canStart && (
           <button
             type="button"
@@ -229,3 +231,4 @@ export function Card({
     </article>
   );
 }
+

@@ -153,3 +153,6 @@ vite.config.ts.timestamp-*
 
 # Local Git worktrees
 .worktrees/
+
+# Electron Builder output
+/desktop/release/
