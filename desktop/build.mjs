@@ -3,12 +3,15 @@ import { createDesktopBuildDefines, loadDesktopReleaseEnv } from './release-env.
 
 const define = createDesktopBuildDefines(loadDesktopReleaseEnv());
 
+// CJS で出力する。ESM 出力だと cross-spawn 等の CJS 依存が内部で使う
+// require('child_process') が esbuild の実行時シムを経由し、
+// Electron の main プロセスで "Dynamic require of ... is not supported" になるため。
 await build({
   entryPoints: ['src/main/index.ts'],
   bundle: true,
   platform: 'node',
-  format: 'esm',
-  outfile: 'dist/main/index.js',
+  format: 'cjs',
+  outfile: 'dist/main/index.cjs',
   external: ['electron'],
   define,
 });
