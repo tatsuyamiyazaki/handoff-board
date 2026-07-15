@@ -976,8 +976,43 @@ a {
   color: var(--text-gray);
 }
 
+/* Circular icon buttons — add (+) / remove (−) rows. Echo the card-action
+ * icon button: sky-blue outline glyph, fills on hover. Danger variant (−) uses
+ * the error hue to signal removal. */
+.settings-dialog__icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--sky-blue);
+  background: var(--white);
+  border: 2px solid var(--sky-blue);
+  border-radius: var(--rounded-full);
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.settings-dialog__icon-btn:hover {
+  background: var(--sky-blue);
+  color: var(--white);
+}
+
+.settings-dialog__icon-btn--danger {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.settings-dialog__icon-btn--danger:hover {
+  background: var(--error);
+  color: var(--white);
+}
+
 /* Secondary text buttons — the brand's outline pill, text-labelled so
- * 削除 / 変更 / CLI を追加 stay legible. Danger variant shifts to the error hue. */
+ * 変更 stays legible. Danger variant shifts to the error hue. */
 .settings-dialog__btn {
   font-family: var(--font-body);
   font-size: 14px;
@@ -996,16 +1031,6 @@ a {
 
 .settings-dialog__btn:hover {
   background: var(--sky-blue);
-  color: var(--white);
-}
-
-.settings-dialog__btn--danger {
-  color: var(--error);
-  border-color: var(--error);
-}
-
-.settings-dialog__btn--danger:hover {
-  background: var(--error);
   color: var(--white);
 }
 

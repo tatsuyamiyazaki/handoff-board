@@ -207,10 +207,12 @@ export function DesktopSettingsDialog({ bridge, onClose }: DesktopSettingsDialog
                 <div className="settings-dialog__cli-actions">
                   <button
                     type="button"
-                    className="settings-dialog__btn settings-dialog__btn--danger"
+                    className="settings-dialog__icon-btn settings-dialog__icon-btn--danger"
+                    aria-label="削除"
+                    title="削除"
                     onClick={() => setCliRows((rows) => rows.filter((_, j) => j !== i))}
                   >
-                    削除
+                    <Icon name="minus" />
                   </button>
                 </div>
               </fieldset>
@@ -218,7 +220,9 @@ export function DesktopSettingsDialog({ bridge, onClose }: DesktopSettingsDialog
             <div>
               <button
                 type="button"
-                className="settings-dialog__btn"
+                className="settings-dialog__icon-btn"
+                aria-label="CLI を追加"
+                title="CLI を追加"
                 onClick={() =>
                   setCliRows((rows) => [
                     ...rows,
@@ -226,7 +230,7 @@ export function DesktopSettingsDialog({ bridge, onClose }: DesktopSettingsDialog
                   ])
                 }
               >
-                CLI を追加
+                <Icon name="plus" />
               </button>
             </div>
 
@@ -245,14 +249,16 @@ export function DesktopSettingsDialog({ bridge, onClose }: DesktopSettingsDialog
                   </button>
                   <button
                     type="button"
-                    className="settings-dialog__btn settings-dialog__btn--danger"
+                    className="settings-dialog__icon-btn settings-dialog__icon-btn--danger"
+                    aria-label="削除"
+                    title="削除"
                     onClick={() =>
                       setFolderMap((m) =>
                         Object.fromEntries(Object.entries(m).filter(([k]) => k !== project)),
                       )
                     }
                   >
-                    削除
+                    <Icon name="minus" />
                   </button>
                 </li>
               ))}
