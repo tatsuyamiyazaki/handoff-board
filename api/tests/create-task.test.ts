@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, test, expect } from 'vitest';
 import { validateCreateTask, buildTask, ValidationError } from '@handoff/shared';
 
 const valid = {
@@ -175,12 +175,29 @@ describe('validateCreateTask（ロール / ADR-0006）', () => {
 });
 
 describe('buildTask', () => {
+  test('buildTask は認証種別を created_by_type に刻む', () => {
+    const normalized = validateCreateTask({
+      title: 'T',
+      owner: 'claude-code',
+      handoff_note: 'メモ',
+      status: 'needs-ai',
+    });
+    const deps = { id: () => 'id-1', now: () => '2026-07-19T00:00:00Z', actor: 'claude-code:ceo' };
+
+    const machine = buildTask(normalized, { ...deps, actorType: 'machine' });
+    expect(machine.created_by_type).toBe('machine');
+
+    const human = buildTask(normalized, { ...deps, actorType: 'human' });
+    expect(human.created_by_type).toBe('human');
+  });
+
   it('created_at/updated_at と created の activity を付与する', () => {
     const normalized = validateCreateTask(valid);
     const task = buildTask(normalized, {
       id: () => 'task-1',
       now: () => '2026-06-01T00:00:00.000Z',
       actor: 'cowork',
+      actorType: 'machine',
     });
     expect(task.id).toBe('task-1');
     expect(task.created_at).toBe('2026-06-01T00:00:00.000Z');
@@ -201,6 +218,7 @@ describe('buildTask', () => {
       id: () => 'task-1',
       now: () => '2026-06-01T00:00:00.000Z',
       actor: 'cowork',
+      actorType: 'machine',
     });
     expect(task.project).toBe('AIRFLOW');
     expect(task.milestone).toBe('v3');
@@ -212,6 +230,7 @@ describe('buildTask', () => {
       id: () => 'task-1',
       now: () => '2026-06-01T00:00:00.000Z',
       actor: 'taro@sunbit.co.jp',
+      actorType: 'human',
     });
     expect(task.created_by).toBe('taro@sunbit.co.jp');
   });

@@ -20,6 +20,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     project: 'handoff',
     milestone: null,
     created_by: 'me@example.com',
+    created_by_type: 'human',
     created_at: '2026-07-14T00:00:00.000Z',
     updated_at: '2026-07-14T00:00:00.000Z',
     activity: [],

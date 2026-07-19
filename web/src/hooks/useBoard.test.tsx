@@ -20,6 +20,7 @@ const task = (over: Partial<Task> = {}): Task => ({
   milestone: null,
   tags: [],
   created_by: 'creator@example.com',
+  created_by_type: 'human',
   created_at: '2026-06-01T00:00:00.000Z',
   updated_at: '2026-06-01T00:00:00.000Z',
   activity: [],

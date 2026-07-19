@@ -12,6 +12,7 @@ import {
   type Owner,
   type Priority,
   type ActionType,
+  type ActorType,
   type Department,
   type Role,
 } from './task.js';
@@ -152,6 +153,8 @@ export interface BuildTaskDeps {
   id: () => string;
   now: () => string;
   actor: string;
+  /** 認証種別（ADR-0011）。created_by_type に刻む。 */
+  actorType: ActorType;
 }
 
 /** NormalizedCreate から Task を生成。created_at/updated_at と created の activity を付与。 */
@@ -172,6 +175,7 @@ export function buildTask(normalized: NormalizedCreate, deps: BuildTaskDeps): Ta
     project: normalized.project,
     milestone: normalized.milestone,
     created_by: deps.actor,
+    created_by_type: deps.actorType,
     created_at: timestamp,
     updated_at: timestamp,
     activity: [{ timestamp, actor: deps.actor, action: 'created' }],

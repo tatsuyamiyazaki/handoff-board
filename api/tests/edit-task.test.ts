@@ -16,6 +16,7 @@ const baseTask = (over: Partial<Task> = {}): Task => ({
   project: null,
   milestone: null,
   created_by: 'creator@example.com',
+  created_by_type: 'human',
   created_at: '2026-06-01T00:00:00.000Z',
   updated_at: '2026-06-01T00:00:00.000Z',
   activity: [{ timestamp: '2026-06-01T00:00:00.000Z', actor: 'creator@example.com', action: 'created' }],

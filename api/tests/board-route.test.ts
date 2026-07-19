@@ -32,6 +32,7 @@ const sampleTask = (over: Partial<Task> = {}): Task => ({
   milestone: null,
   tags: [],
   created_by: 'creator@example.com',
+  created_by_type: 'human',
   created_at: '2026-06-01T00:00:00Z',
   updated_at: '2026-06-01T00:00:00Z',
   activity: [],
@@ -155,7 +156,11 @@ describe('POST /api/board（作成）', () => {
     const repository = new InMemoryTaskRepository([]);
     app = buildApp({
       repository,
-      auth: { boardTokens },
+      auth: {
+        boardTokens,
+        allowedEmails: ['tatsuya.miyazaki@gmail.com'],
+        tokenVerifier: fakeVerifier({ 'good-id-token': 'tatsuya.miyazaki@gmail.com' }),
+      },
       ids: () => 'fixed-id',
       clock: () => '2026-06-01T00:00:00.000Z',
     });
@@ -183,10 +188,30 @@ describe('POST /api/board（作成）', () => {
     expect(task.id).toBe('fixed-id');
     expect(task.title).toBe('記事を書く');
     expect(task.status).toBe('needs-ai');
+    expect(task.created_by_type).toBe('machine');
     expect(task.created_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.updated_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.activity).toHaveLength(1);
     expect(task.activity[0]).toMatchObject({ actor: 'cowork', action: 'created' });
+  });
+
+  it('人間 Bearer で作成すると created_by_type=human を刻む', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board',
+      headers: { authorization: 'Bearer good-id-token' },
+      payload: {
+        title: '人間が作るタスク',
+        owner: 'human',
+        handoff_note: '自分で対応',
+        status: 'needs-human',
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().data).toMatchObject({
+      created_by: 'tatsuya.miyazaki@gmail.com',
+      created_by_type: 'human',
+    });
   });
 
   it('必須項目欠落は 422・success=false', async () => {

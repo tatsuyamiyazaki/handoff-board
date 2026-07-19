@@ -67,9 +67,9 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
   });
 
   app.post('/api/board', async (request, reply) => {
-    const { actor } = await authenticate(request.headers, deps.auth);
+    const { actor, type } = await authenticate(request.headers, deps.auth);
     const normalized = validateCreateTask(request.body);
-    const task = buildTask(normalized, { id: newId, now, actor });
+    const task = buildTask(normalized, { id: newId, now, actor, actorType: type });
     const created = await deps.repository.create(task);
     reply.status(201);
     return ok(created);
