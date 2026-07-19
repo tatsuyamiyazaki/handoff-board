@@ -1,0 +1,42 @@
+# エージェント識別を「機能別トークン＝強制の単位」「セッションID＝記録の単位」の二層で表現する
+
+## Status
+
+proposed — [ADR-0006](0006-owner-department-role-three-axes.md) の帰結のうち「機械系トークンは AI 実行者ごとに発行」を amend する（発行粒度を実行者×機能に細分化）
+
+## 決定
+
+- 機械系トークン（`BOARD_TOKENS`、[ADR-0001](0001-dual-auth-machine-token-and-human-firebase.md)）の発行粒度を「AI 実行者ごと」（[ADR-0006](0006-owner-department-role-three-axes.md)。例: `claude-code`）から**「AI 実行者×機能」ごと**に細分化する。例:
+
+  ```json
+  {"cc-dev-token": "claude-code:dev", "cc-reviewer-token": "claude-code:reviewer", "cc-ceo-token": "claude-code:ceo", "cowork-token": "cowork", "codex-dev-token": "codex:dev"}
+  ```
+
+  actor 文字列は `owner[:機能]` 形式とする。この actor が**サーバー側で実行時強制を行う際の主体単位**である。比較規則は用途で異なる: **自己レビュー排除（[ADR-0007](0007-in-review-state-and-review-cycle-limit.md)）は actor 文字列の完全一致**で判定する（`claude-code:dev` と `claude-code:reviewer` は別 actor であり、この差が実行者とレビュアーの分離を成立させる。owner 前方一致で実装すると両者が同一視され、正当なレビュアーの遷移が 422 で弾かれることに注意）。`:` より前の owner 部分を使うのは、機械系作成タスクの絞り込み等の**照合（読み取り）用途のみ**で、強制判定には使わない。
+- actor 形式の厳密仕様: **最初の `:` で owner と機能に分割**する。owner・機能のいずれかが空になる値（`:dev`、`claude-code:`）と、機能部分に `:` を含む値（`a:b:c`）は不正とし、`BOARD_TOKENS` の**読み込み時（サーバー起動時）に検証エラーで fail-fast** する（不正 actor がリクエスト時まで残らない）。owner 前方一致（読み取り用途）は「`actor === owner` ∨ actor が `owner + ':'` で始まる」と定義する（単純な `startsWith(owner)` では `claude-code` が `claude-code-2` に誤マッチする）。
+- 機械系クライアントは任意ヘッダー **`X-Agent-Session`** で自己申告のセッション識別子（例: `dev-worktree-a3f2`）を送れる。値は `ActivityEntry` に `session: string | null` として記録する。これは**トレーサビリティ（記録）の単位**であり、認証にも強制にも使わない。
+- worktree 並列実行の追跡は「actor（認証済み）＋ session（自己申告）」の合成で行う。ボードのスキーマとしてはこれ以上のプロセス識別基盤（動的トークン発行等）を持たない。
+
+## 文脈とトレードオフ
+
+現状の actor は owner と同粒度（`claude-code` 等）であり、同一 owner 配下の複数プロセスを区別できない。この欠落は2つの新要件と衝突する。第一に、レビュー関門（ADR-0007）の「実行者と検証者の分離」をサーバーで強制するには、実装した主体とレビューする主体が別物であるとサーバーが判定できなければならない。第二に、worktree 分離による並列実行をボードで観測するには、activity の actor が `claude-code` の羅列では追跡可能性の実質がない。
+
+一方、脅威モデルは一貫して「性善説＋事故」である（承認 Gate の設計 [ADR-0010](0010-approval-gate-enforcement-at-infrastructure-layer.md) と同一の前提）。セッション ID の偽装は意図を要する行為であり、事故では起きない。また偽装によって起きうる最悪事態は「自己レビュー排除のすり抜け→未検証コードが社内リポジトリに入る」であり、これは社外影響を伴わない=規約レベルの統制で許容すると判断済みのリスク領域に収まる。したがって、**強制が必要な判定（自己レビュー排除）は認証で裏付けられたトークン粒度**に置き、**プロセス粒度は記録専用**とする責務分離が、強制の強度と実装コストの釣り合う点である。
+
+検討した代替案:
+
+1. **登録エンドポイント方式**（起動時にブートストラップトークンで登録し、サーバーがプロセスごとの短命トークンを発行）— 却下。偽装不能なプロセス識別が得られるが、トークンのライフサイクル管理（発行・失効・掃除）という新しいサブシステムを要する。上記の脅威モデルではこの強度は不要。将来必要になれば、actor 形式（`owner:機能`）を保ったまま発行元だけ差し替えられる。
+2. **プロセスごとに静的トークンを事前発行** — 却下。worktree ごとに起動される短命ワーカーは事前に列挙できず、環境変数ベースの静的リストと構造的に相容れない。
+3. **セッション ID を持たない（機能別トークンのみ）** — 却下。並列ワーカー同士が区別できず、cc-agent-harness の worktree 並列をボードで観測するという目的の実質が失われる。ヘッダー1本と nullable フィールド1つで得られる情報を捨てる理由がない。
+4. **role（ADR-0006 の department 配下ロール）を actor に流用する** — 却下。role はタスク側の属性（このタスクを何の役割でやるか）であり、actor は操作主体の属性である。両者は独立に変わる（同じ dev トークンが複数ロールのタスクを処理しうる）。タスクの three-axes に認証を癒着させると、ロール追加のたびにトークン運用が変わる。
+
+## 帰結
+
+- `api/src/auth/auth-middleware.ts`: 解決ロジックは変更不要（token→actor マップの値が細分化されるだけ）。ただし `BOARD_TOKENS` の読み込み箇所に、決定に定めた actor 形式の**起動時検証（fail-fast）**を追加する。運用値も新形式に更新する。
+- `shared/src/task.ts`: `ActivityEntry` に `session: string | null` を追加。既存データは null として読む。
+- api: リクエストから `X-Agent-Session` を読み取り、activity 追記時に伝搬する（`TransitionDeps` 相当の依存注入を拡張）。
+- 自己レビュー排除（ADR-0007）の判定は actor 完全一致で行う。dev トークンで `in-progress → in-review` したタスクは、**その dev トークン以外の任意の actor** が `done` / 差し戻しにできる（reviewer トークン限定ではない。レビューを reviewer トークンで行うのは運用上の推奨であり、サーバーは actor の「機能」部分を解釈しない）。
+- 同一人物が同一機能のトークンを複数発行すると（例: `cc-dev-a` / `cc-dev-b`）、完全一致判定は素通りできる。自己レビュー排除の実効性は「**1機能1トークン**」という発行規律（規約）に依存し、構造的には防げない。これは脅威モデル（性善説＋事故 — トークンは人間が手動発行するため事故では増殖しない）の下で意図的に受容する。
+- handoff-mcp: 環境変数でトークンとセッション ID を受け取り、全リクエストに付与する。worktree 起動スクリプトはセッション ID（例: ブランチ名＋短ハッシュ）を生成して渡す。
+- `created_by`（[ADR-0003](0003-per-user-board-scoping-by-created-by.md)）の値も新 actor 形式になる。人間ボードのスコープ判定はメール一致のため影響なし。機械系作成タスクの絞り込みを行う場合は前方一致（`owner:` プレフィックス）を使う。
+- accepted 時には [ADR-0006](0006-owner-department-role-three-axes.md) 側にも、トークン発行粒度に関する帰結が本 ADR で amend された旨の注記を加える。
