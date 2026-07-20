@@ -2,16 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { canRecoverToReview, type Task } from '@handoff/shared';
 import { transitionTask as defaultTransitionTask, type TransitionInput } from '../api-client';
+import { TARGET_LABEL, type HandoffTarget } from '../lib/handoff-targets';
 import { Icon } from './icons';
-
-/** 解除後の遷移先（blocked → needs-* / in-review）。 */
-type HandoffTarget = 'needs-ai' | 'needs-human' | 'in-review';
-
-const TARGET_LABEL: Record<HandoffTarget, string> = {
-  'needs-ai': 'AI待ち',
-  'needs-human': '人間待ち',
-  'in-review': 'レビュー待ちに戻す',
-};
 
 interface UnblockDialogProps {
   task: Task;

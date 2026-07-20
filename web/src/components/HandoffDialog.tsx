@@ -2,15 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { Task } from '@handoff/shared';
 import { transitionTask as defaultTransitionTask, type TransitionInput } from '../api-client';
+import { TARGET_LABEL, type HandoffTarget } from '../lib/handoff-targets';
 import { Icon } from './icons';
 
-/** 引き継ぎ・差し戻し先（in-progress / in-review → needs-*）。 */
-type HandoffTarget = 'needs-ai' | 'needs-human';
-
-const TARGET_LABEL: Record<HandoffTarget, string> = {
-  'needs-ai': 'AI待ち',
-  'needs-human': '人間待ち',
-};
+/** 引き継ぎ・差し戻し先（in-progress / in-review → needs-*）。in-review 復帰は UnblockDialog の責務。 */
+const HANDOFF_TARGETS = ['needs-ai', 'needs-human'] as const satisfies readonly HandoffTarget[];
+type NeedsTarget = (typeof HANDOFF_TARGETS)[number];
 
 interface HandoffDialogProps {
   task: Task;
@@ -27,7 +24,7 @@ export function HandoffDialog({
   onTransitioned,
   transitionTask = defaultTransitionTask,
 }: HandoffDialogProps) {
-  const [target, setTarget] = useState<HandoffTarget>('needs-ai');
+  const [target, setTarget] = useState<NeedsTarget>('needs-ai');
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -75,8 +72,8 @@ export function HandoffDialog({
 
         <label className="field">
           <span>{actionLabel}先</span>
-          <select value={target} onChange={(e) => setTarget(e.target.value as HandoffTarget)}>
-            {(Object.keys(TARGET_LABEL) as HandoffTarget[]).map((t) => (
+          <select value={target} onChange={(e) => setTarget(e.target.value as NeedsTarget)}>
+            {HANDOFF_TARGETS.map((t) => (
               <option key={t} value={t}>
                 {TARGET_LABEL[t]}
               </option>
