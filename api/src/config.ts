@@ -1,16 +1,24 @@
+import { normalizeReviewCycleLimit, ValidationError } from '@handoff/shared';
 import type { BoardTokenMap } from './auth/auth-middleware.js';
 
 /** グローバル既定の差し戻し上限（ADR-0007）。 */
 export const DEFAULT_REVIEW_CYCLE_LIMIT = 5;
 
-/** REVIEW_CYCLE_LIMIT を正の安全な整数にパースする。未設定は既定値 5。 */
+/**
+ * REVIEW_CYCLE_LIMIT を正の安全な整数にパースする。未設定は既定値 5。
+ * 値域規則は shared の normalizeReviewCycleLimit（タスク編集と同一）に委譲し、二重定義しない。
+ */
 export function loadReviewCycleLimit(raw: string | undefined): number {
   if (!raw) return DEFAULT_REVIEW_CYCLE_LIMIT;
-  const limit = Number(raw);
-  if (!Number.isSafeInteger(limit) || limit < 1) {
-    throw new Error('REVIEW_CYCLE_LIMIT must be a positive safe integer');
+  try {
+    // 数値変換の失敗（NaN）も normalizeReviewCycleLimit が拒否する。
+    return normalizeReviewCycleLimit(Number(raw)) as number;
+  } catch (error: unknown) {
+    if (error instanceof ValidationError) {
+      throw new Error('REVIEW_CYCLE_LIMIT must be a positive safe integer');
+    }
+    throw error;
   }
-  return limit;
 }
 
 /** actor の合法形式（ADR-0008）: `owner` または `owner:機能`。最初の `:` で分割し、両側非空・`:` は1個まで。 */

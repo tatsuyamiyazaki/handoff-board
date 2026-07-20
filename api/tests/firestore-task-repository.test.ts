@@ -46,6 +46,15 @@ describe('Firestore Task hydration（ADR-0007）', () => {
       review_cycle_limit: 5,
     });
   });
+
+  it('旧データで created_by_type が欠落していれば human を補完する（ADR-0011 の保守的既定）', () => {
+    const { created_by_type: _createdByType, ...legacy } = storedTask;
+
+    expect(toTask('legacy-machine', legacy)).toMatchObject({
+      id: 'legacy-machine',
+      created_by_type: 'human',
+    });
+  });
 });
 
 // Firestore エミュレータ（JVM 必須）が現環境に無いため skip。

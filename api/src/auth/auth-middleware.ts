@@ -60,11 +60,7 @@ export async function authenticate(headers: Headers, config: AuthConfig): Promis
     if (!Object.hasOwn(config.boardTokens, boardToken)) {
       throw new AuthError(403, 'invalid board token');
     }
-    const actor = config.boardTokens[boardToken];
-    if (actor === undefined) {
-      throw new AuthError(403, 'invalid board token');
-    }
-    return { actor, type: 'machine' };
+    return { actor: config.boardTokens[boardToken], type: 'machine' };
   }
 
   const authorization = headerValue(headers, 'authorization');

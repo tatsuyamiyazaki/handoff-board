@@ -44,7 +44,7 @@ describe('authenticate（機械系 X-Board-Token パス）', () => {
     expect(err.status).toBe(403);
   });
 
-  it.each(['toString', 'constructor', 'valueOf'])(
+  it.each(['toString', 'constructor', 'valueOf', '__proto__'])(
     'Object.prototype 由来の名前 %s は空のトークンマップで 403',
     async (inheritedName) => {
       const err = await caught(() =>
@@ -55,7 +55,7 @@ describe('authenticate（機械系 X-Board-Token パス）', () => {
     },
   );
 
-  it.each(['toString', 'constructor', 'valueOf'])(
+  it.each(['toString', 'constructor', 'valueOf', '__proto__'])(
     'Object.prototype 由来の名前 %s は設定済みマップでも 403',
     async (inheritedName) => {
       const err = await caught(() =>
