@@ -1,5 +1,40 @@
-import { describe, it, expect } from 'vitest';
-import { loadAllowedEmails, loadAllowedEmailDomains } from '../src/config.js';
+import { describe, it, test, expect } from 'vitest';
+import { loadAllowedEmails, loadAllowedEmailDomains, loadBoardTokens } from '../src/config.js';
+
+describe('loadBoardTokens の actor 形式検証（ADR-0008）', () => {
+  test('owner 単独と owner:機能 は受理する', () => {
+    const raw = JSON.stringify({
+      t1: 'cowork',
+      t2: 'claude-code:dev',
+      t3: 'claude-code:ceo',
+    });
+    expect(loadBoardTokens(raw)).toEqual({
+      t1: 'cowork',
+      t2: 'claude-code:dev',
+      t3: 'claude-code:ceo',
+    });
+  });
+
+  test.each([
+    [':dev', 'owner が空'],
+    ['claude-code:', '機能が空'],
+    ['a:b:c', 'コロン複数'],
+    ['', '空文字'],
+  ])('不正な actor 形式 %s（%s）は起動時に throw する', (actor) => {
+    expect(() => loadBoardTokens(JSON.stringify({ token: actor }))).toThrow(/actor/);
+  });
+
+  test('actor が文字列でない値は throw する', () => {
+    expect(() => loadBoardTokens('{"token": 42}')).toThrow(/actor/);
+  });
+
+  test('形式エラーに bearer token の値を含めない', () => {
+    const sentinel = 'super-secret-board-token';
+    expect(() => loadBoardTokens(JSON.stringify({ [sentinel]: ':invalid' }))).toThrowError(
+      expect.not.objectContaining({ message: expect.stringContaining(sentinel) }),
+    );
+  });
+});
 
 describe('loadAllowedEmails', () => {
   it('未設定なら空配列', () => {

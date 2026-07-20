@@ -1,11 +1,25 @@
 import type { BoardTokenMap } from './auth/auth-middleware.js';
 
-/** 環境変数 BOARD_TOKENS（token→actor のJSON）をパースする。未設定時は空。 */
+/** actor の合法形式（ADR-0008）: `owner` または `owner:機能`。最初の `:` で分割し、両側非空・`:` は1個まで。 */
+const ACTOR_FORMAT = /^[^:]+(:[^:]+)?$/;
+
+/**
+ * 環境変数 BOARD_TOKENS（token→actor のJSON）をパースする。未設定時は空。
+ * actor 形式の違反は読み込み時（サーバー起動時）に fail-fast する（ADR-0008 —
+ * 不正 actor をリクエスト時まで残さない）。
+ */
 export function loadBoardTokens(raw: string | undefined): BoardTokenMap {
   if (!raw) return {};
   const parsed: unknown = JSON.parse(raw);
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     throw new Error('BOARD_TOKENS must be a JSON object of {token: actor}');
+  }
+  for (const actor of Object.values(parsed as Record<string, unknown>)) {
+    if (typeof actor !== 'string' || !ACTOR_FORMAT.test(actor)) {
+      throw new Error(
+        'BOARD_TOKENS: invalid actor format — expected "owner" or "owner:function"',
+      );
+    }
   }
   return parsed as BoardTokenMap;
 }
