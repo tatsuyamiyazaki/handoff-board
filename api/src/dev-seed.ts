@@ -2,9 +2,8 @@ import type { Task } from '@handoff/shared';
 
 /**
  * Firestore エミュレータ無しでも UI 表示を確認できるローカル開発用シード。
- * created_by は null（特定ユーザーに紐づかない）。人間UIは created_by が自分のメールと
- * 一致するタスクのみ読み込むため、これらはサインイン後の人間ボードには表示されない
- * （機械系パス＝AI はボード全体を見るので確認に使える）。
+ * created_by は null（特定ユーザーに紐づかない）だが、機械系作成タスクとして扱う。
+ * ADR-0011 の OR フィルタ導入後は、意図的にサインイン後の人間ボードにも表示される。
  */
 export const devSeed: Task[] = [
   {
@@ -22,6 +21,9 @@ export const devSeed: Task[] = [
     project: 'ニュースレター',
     milestone: '6月号',
     created_by: null,
+    created_by_type: 'machine',
+    review_cycles: 0,
+    review_cycle_limit: null,
     created_at: '2026-06-01T00:00:00Z',
     updated_at: '2026-06-01T00:00:00Z',
     activity: [{ timestamp: '2026-06-01T00:00:00Z', actor: 'human', action: 'created' }],
@@ -41,6 +43,9 @@ export const devSeed: Task[] = [
     project: 'API刷新',
     milestone: 'v2',
     created_by: null,
+    created_by_type: 'machine',
+    review_cycles: 0,
+    review_cycle_limit: null,
     created_at: '2026-06-01T01:00:00Z',
     updated_at: '2026-06-01T01:00:00Z',
     activity: [{ timestamp: '2026-06-01T01:00:00Z', actor: 'human', action: 'created' }],
@@ -60,6 +65,9 @@ export const devSeed: Task[] = [
     project: '競合調査',
     milestone: null,
     created_by: null,
+    created_by_type: 'machine',
+    review_cycles: 0,
+    review_cycle_limit: null,
     created_at: '2026-06-01T02:00:00Z',
     updated_at: '2026-06-01T03:00:00Z',
     activity: [{ timestamp: '2026-06-01T02:00:00Z', actor: 'human', action: 'created' }],

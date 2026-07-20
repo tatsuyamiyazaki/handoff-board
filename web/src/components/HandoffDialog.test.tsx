@@ -1,28 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { HandoffDialog } from './HandoffDialog';
 
-const task = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: 'サンプル',
-  status: 'in-progress',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: '',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_at: '2026-06-01T00:00:00.000Z',
-  updated_at: '2026-06-01T00:00:00.000Z',
-  activity: [],
-  ...over,
-});
+const task = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: 'サンプル',
+    status: 'in-progress',
+    owner: 'cowork',
+    handoff_note: '',
+    activity: [],
+    ...over,
+  });
 
 describe('HandoffDialog', () => {
   it('メモ未入力で送信するとエラーを表示し、遷移は呼ばれない', async () => {
@@ -65,5 +55,20 @@ describe('HandoffDialog', () => {
       handoff_note: '続きをお願いします',
       updated_at: '2026-06-01T00:00:00.000Z',
     });
+  });
+
+  it('in-review タスクでは差し戻しとして案内する', () => {
+    render(
+      <HandoffDialog
+        task={task({ status: 'in-review' })}
+        onClose={() => {}}
+        onTransitioned={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole('form', { name: 'タスクを差し戻す' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '差し戻す' })).toBeInTheDocument();
+    expect(screen.getByLabelText('差し戻し先')).toBeInTheDocument();
+    expect(screen.getByLabelText('差し戻しメモ')).toBeInTheDocument();
   });
 });

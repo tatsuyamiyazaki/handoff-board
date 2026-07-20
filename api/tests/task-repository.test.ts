@@ -1,28 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { InMemoryTaskRepository } from '../src/repository/in-memory-task-repository.js';
 import { ConflictError } from '../src/repository/task-repository.js';
 
-const sampleTask = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: 'サンプル',
-  status: 'needs-ai',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: 'お願いします',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_at: '2026-06-01T00:00:00Z',
-  updated_at: '2026-06-01T00:00:00Z',
-  activity: [],
-  ...over,
-});
+const sampleTask = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: 'サンプル',
+    owner: 'cowork',
+    handoff_note: 'お願いします',
+    created_at: '2026-06-01T00:00:00Z',
+    updated_at: '2026-06-01T00:00:00Z',
+    activity: [],
+    ...over,
+  });
 
 describe('InMemoryTaskRepository.findAll', () => {
   it('空のボードでは空配列を返す', async () => {
@@ -48,6 +39,29 @@ describe('InMemoryTaskRepository.findAll', () => {
     ]);
     const result = await repo.findAll({ createdBy: 'me@example.com' });
     expect(result.map((t) => t.id)).toEqual(['mine']);
+  });
+
+  it('createdBy 指定時、機械系作成タスクも返す（ADR-0011）', async () => {
+    const mine = sampleTask({
+      id: 't1',
+      created_by: 'me@example.com',
+      created_by_type: 'human',
+    });
+    const others = sampleTask({
+      id: 't2',
+      created_by: 'other@example.com',
+      created_by_type: 'human',
+    });
+    const machine = sampleTask({
+      id: 't3',
+      created_by: 'claude-code:ceo',
+      created_by_type: 'machine',
+    });
+    const repo = new InMemoryTaskRepository([mine, others, machine]);
+
+    const tasks = await repo.findAll({ createdBy: 'me@example.com' });
+
+    expect(tasks.map((t) => t.id).sort()).toEqual(['t1', 't3']);
   });
 });
 

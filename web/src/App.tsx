@@ -12,13 +12,30 @@ import {
   signInWithGoogle,
   signOutUser,
 } from './auth/firebase-auth';
+
+/** App が使う認証操作。テスト用に差し替え可能（既定は firebase-auth の配線）。 */
+export interface AppAuth {
+  /** 構成済みか（サインインボタンの活性）。 */
+  isConfigured: () => boolean;
+  /** ログイン状態の購読。当人メール（未ログインは null）を通知し、解除関数を返す。 */
+  onUserChange: (callback: (email: string | null) => void) => () => void;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+const firebaseAppAuth: AppAuth = {
+  isConfigured: isAuthConfigured,
+  onUserChange,
+  signIn: signInWithGoogle,
+  signOut: signOutUser,
+};
 import { Icon } from './components/icons';
 import { desktopBridge } from './desktop/bridge';
 import { DesktopSettingsDialog } from './desktop/DesktopSettingsDialog';
 import { RunPanel } from './desktop/RunPanel';
 
 // #02 Firebase サインイン、#03 タスク作成、#05/#06 遷移・アーカイブ、#08 ポーリング自動更新。
-export function App() {
+export function App({ auth = firebaseAppAuth }: { auth?: AppAuth } = {}) {
   const queryClient = useQueryClient();
   const bridge = desktopBridge();
   const [authError, setAuthError] = useState<string | null>(null);
@@ -39,7 +56,7 @@ export function App() {
     milestones: distinctValues(tasks, 'milestone'),
   };
 
-  useEffect(() => onUserChange(setEmail), []);
+  useEffect(() => auth.onUserChange(setEmail), [auth]);
   useEffect(() => {
     const openSettings = (): void => setShowDesktopSettings(true);
     window.addEventListener('handoff:open-settings', openSettings);
@@ -89,7 +106,7 @@ export function App() {
                   type="button"
                   aria-label="サインアウト"
                   title="サインアウト"
-                  onClick={() => void signOutUser()}
+                  onClick={() => void auth.signOut()}
                 >
                   <Icon name="log-out" />
                 </button>
@@ -99,9 +116,9 @@ export function App() {
                 type="button"
                 aria-label="Google でサインイン"
                 title="Google でサインイン"
-                disabled={!isAuthConfigured()}
+                disabled={!auth.isConfigured()}
                 onClick={() =>
-                  void signInWithGoogle().catch((e: unknown) =>
+                  void auth.signIn().catch((e: unknown) =>
                     setAuthError(e instanceof Error ? e.message : String(e)),
                   )
                 }
@@ -129,7 +146,7 @@ export function App() {
           </>
         ) : (
           <p className="app__signin-prompt">
-            サインインすると、あなたが作成したタスクのボードが表示されます。
+            サインインすると、あなたが作成したタスクと AI が作成したタスクのボードが表示されます。
           </p>
         )}
         {showCreate && (

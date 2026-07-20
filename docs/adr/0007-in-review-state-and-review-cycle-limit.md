@@ -2,7 +2,7 @@
 
 ## Status
 
-proposed — [ADR-0002](0002-status-transitions-as-server-state-machine.md) を amend する（遷移グラフを拡張し、`in-progress → done` の辺を削除する）
+accepted — [ADR-0002](0002-status-transitions-as-server-state-machine.md) を amend する（遷移グラフを拡張し、`in-progress → done` の辺を削除する）
 
 ## 決定
 
@@ -40,11 +40,15 @@ CEO オーケストレーション（[ADR-0009](0009-ceo-orchestrator-pull-based
 ## 帰結
 
 - `shared/src/task.ts`: `STATUSES` に `in-review` 追加、`Task` に `review_cycles: number`（既定 0）と `review_cycle_limit: number | null` を追加。
-- `shared/src/transition.ts`: `ALLOWED_TRANSITIONS` の拡張、`in-progress → done` の辺の削除、差し戻し・エスカレーション時の `handoff_note` 必須化（`isHandoff` に `in-review → needs-ai` と `in-review → needs-human` を追加）、`review_cycles` インクリメント、上限検証、自己レビュー排除検証。現 actor は既存の `TransitionDeps.actor` で渡るが、`TransitionDeps` は現状 `{now, actor}` のみのため、人間例外の判定に使う**認証種別（`type`）の配線追加が必要**。
-- 現行の `ActivityEntry` は遷移の from/to を `action` の自由文字列（例: `"in-progress → in-review"`）にしか持たない。自己レビュー判定を文字列パースに依存させないため、`ActivityEntry` に構造化フィールド `from` / `to`（status 値。遷移以外のエントリでは null）を追加する。既存データは null として読む（後方互換）。
+- `shared/src/transition.ts`: `ALLOWED_TRANSITIONS` の拡張、`in-progress → done` の辺の削除、差し戻し・エスカレーション時の `handoff_note` 必須化、`review_cycles` インクリメント、上限検証、人間によるリセット、自己レビュー排除、レビュー中断からの復帰判定を実装した。`TransitionDeps` は `actor` に加えて `actorType` と `reviewCycleLimit` を必須で受け取り、人間例外と上限判定に使う。
+- `ActivityEntry` に任意の構造化フィールド `from?` / `to?`（status または null）を追加し、新しい遷移エントリには両方を記録する。既存データの欠落フィールドは欠落（`undefined`）のまま後方互換で扱い、自由文字列 `action` のパースには依存しない。
 - `in-review` タスクに「どのレビュー役割向けか（code-review / architecture 等）」を表す専用軸は持たない。reviewer は `status=in-review`（必要に応じて department で絞る）で pull する。レビュー役割のルーティング軸が必要になったら別 ADR で扱う。
 - web: `in-review` レーン（またはチップ）の追加。`in-progress → done` ボタンは消え、`in-progress → in-review` に置き換わる。人間がレビュー中のタスクを一望できることが UI 要件。
 - **handoff-mcp（別リポジトリ）はロックステップ更新が必須**（ADR-0006 と同様）: status enum の複製更新に加え、reviewer が `in-review` タスクを pull できるようクエリ対象を拡張する。
 - 既存タスクのマイグレーション: `review_cycles` 欠落は 0 として読む（後方互換の読み出しデフォルト）。
-- CONTEXT.md の更新が必須: 「status 値自体は5つのまま変えない」の記述を 6 値に改め、レーン（カンバン）定義に `in-review` を追加する。accepted 時には [ADR-0002](0002-status-transitions-as-server-state-machine.md) 側にも本 ADR による amend の注記を加える。
+- CONTEXT.md は status を 6 値として In Review レーンを含む定義へ更新し、[ADR-0002](0002-status-transitions-as-server-state-machine.md) に本 ADR の amend 注記を追加した。
 - 人間 owner のタスクも、`done` への唯一の入口が `in-review` である以上 `in-review` を必ず経由する（免除されるのはレビュー関門そのものではなく**別レビュアーの介在**）。自己レビュー排除の例外は「**タスクの owner が `human`**、かつ**現遷移を実行している actor の認証種別が `type: 'human'`**（[ADR-0001](0001-dual-auth-machine-token-and-human-firebase.md)）」の場合に限る（人間は自分の作業を自分で完了と宣言できる）。判定に使う認証種別は現遷移の actor のものであり、activity 上の過去 actor の種別推定は行わない。owner が AI 系のタスクにはこの例外を適用しない — 人間が AI タスクを**レビューする**のは別 actor 遷移として例外なしで通る一方、人間が AI タスクを実装（`in-progress → in-review`）から完了まで単独で通すラバースタンプ経路は塞ぐ。
+- **補強（2026-07-21、実装レビューによる迂回経路の閉塞）**:
+  - **blocked 迂回の差し戻しも往復として扱う**: レビュー中断中の blocked（直近の遷移が `in-review → blocked`、復帰判定 `canRecoverToReview` と同一の述語）から `needs-ai` へ出る遷移は、`in-review → needs-ai` と同じ規則（遷移前値での上限判定・`review_cycles` インクリメント・自己レビュー排除）を適用する。これを欠くと `in-review → blocked → needs-ai` の 2 手で上限とレビュアー分離を素通りできてしまう。レビュー由来でない blocked からの `needs-ai` は従来どおり（機械系は不変、人間はリセット）。
+  - **レビュー中の owner 変更禁止**: `in-review` およびレビュー中断中の blocked にあるタスクの owner は `/details` 編集で変更できない（422）。owner を `human` に書き換えてから人間例外で自己完了するラバースタンプ迂回を塞ぐ。
+  - **作成時の `review_cycle_limit` 指定は 422**: `POST /api/board` はこのフィールドを黙殺せず明示拒否する（設定・変更は `/details` 経路の人間のみ。[ADR-0006](0006-owner-department-role-three-axes.md) の厳格拒否原則）。

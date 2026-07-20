@@ -4,6 +4,7 @@ export const STATUSES = [
   'needs-ai',
   'needs-human',
   'in-progress',
+  'in-review',
   'done',
   'blocked',
 ] as const;
@@ -77,13 +78,25 @@ export const ACTION_TYPES = [
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 
+/** 認証種別（ADR-0001 の type）。作成主体の記録（ADR-0011）と遷移の人間例外判定（ADR-0007）に使う。 */
+export type ActorType = 'human' | 'machine';
+
 /** 活動履歴の1エントリ。いつ・誰が・何をしたか。 */
 export interface ActivityEntry {
   /** ISO 8601（例: 2026-06-01T07:30:00Z） */
   timestamp: string;
-  /** 操作主体。人間=メール等、機械系=トークン種別。owner とは別概念。 */
+  /** 操作主体。人間=メール等、機械系=トークン種別（owner[:機能]、ADR-0008）。owner とは別概念。 */
   actor: string;
   action: string;
+  /**
+   * 自己申告のセッション識別子（X-Agent-Session、ADR-0008）。記録専用で認証・強制には使わない。
+   * 新規エントリは文字列または null。既存データではフィールド自体が無い場合もある。
+   */
+  session?: string | null;
+  /** 遷移エントリの構造化 from（ADR-0007。文字列パースに依存しない自己レビュー判定用）。遷移以外は null、既存データでは欠落もある。 */
+  from?: Status | null;
+  /** 遷移エントリの構造化 to。遷移以外は null、既存データでは欠落もある。 */
+  to?: Status | null;
 }
 
 /** 1件の作業項目。Firestore では board / archive の1ドキュメント。 */
@@ -108,13 +121,22 @@ export interface Task {
   milestone: string | null;
   /**
    * このタスクを作成した主体。人間作成時はサインインメール、機械系作成時はトークン種別。
-   * 人間UIはこの値が自分のメールと一致するタスクだけを読み込む（ボードのユーザー絞り込み）。
+   * 人間UIはこの値が自分のメールと一致するタスクに加え、機械系作成タスクも読み込む（ADR-0011）。
    * 作成主体不明（レガシー）の場合は null。
    */
   created_by: string | null;
+  /**
+   * 作成主体の認証種別（ADR-0011）。人間ボードは「created_by が自分 ∨ machine」を表示する。
+   * 既存データの欠落は 'human' として読む（保守的既定。リポジトリ実装が補完する）。
+   */
+  created_by_type: ActorType;
   /** ISO 8601 */
   created_at: string;
   /** ISO 8601。楽観的並行制御の照合キー。 */
   updated_at: string;
+  /** 差し戻し回数（in-review → needs-ai のたびにサーバーがインクリメント、ADR-0007）。既存データ欠落は 0。 */
+  review_cycles: number;
+  /** タスク単位の差し戻し上限（null なら REVIEW_CYCLE_LIMIT 既定値、ADR-0007）。人間のみ変更可。 */
+  review_cycle_limit: number | null;
   activity: ActivityEntry[];
 }

@@ -12,6 +12,7 @@ import {
   type Owner,
   type Priority,
   type ActionType,
+  type ActorType,
   type Department,
   type Role,
 } from './task.js';
@@ -144,6 +145,14 @@ export function validateCreateTask(input: unknown): NormalizedCreate {
   const project = normalizeOptionalString(body.project, 'project');
   const milestone = normalizeOptionalString(body.milestone, 'milestone');
 
+  // review_cycle_limit は作成時に受け付けない（黙殺せず fail-fast、ADR-0006 の厳格拒否原則）。
+  // 設定・変更は /details 経路のみ（人間限定、ADR-0007）。
+  if (body.review_cycle_limit !== undefined) {
+    throw new ValidationError(
+      'review_cycle_limit は作成時には指定できません（詳細編集で人間のみ変更できます）',
+    );
+  }
+
   return { title, owner, handoff_note, status, priority, action_type, tags, department, role, project, milestone };
 }
 
@@ -152,6 +161,10 @@ export interface BuildTaskDeps {
   id: () => string;
   now: () => string;
   actor: string;
+  /** 認証種別（ADR-0011）。created_by_type に刻む。 */
+  actorType: ActorType;
+  /** 自己申告の X-Agent-Session。記録専用（ADR-0008）。 */
+  session?: string | null;
 }
 
 /** NormalizedCreate から Task を生成。created_at/updated_at と created の activity を付与。 */
@@ -172,8 +185,11 @@ export function buildTask(normalized: NormalizedCreate, deps: BuildTaskDeps): Ta
     project: normalized.project,
     milestone: normalized.milestone,
     created_by: deps.actor,
+    created_by_type: deps.actorType,
+    review_cycles: 0,
+    review_cycle_limit: null,
     created_at: timestamp,
     updated_at: timestamp,
-    activity: [{ timestamp, actor: deps.actor, action: 'created' }],
+    activity: [{ timestamp, actor: deps.actor, action: 'created', session: deps.session ?? null }],
   };
 }

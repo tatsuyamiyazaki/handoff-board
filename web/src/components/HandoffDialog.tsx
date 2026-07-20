@@ -2,15 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { Task } from '@handoff/shared';
 import { transitionTask as defaultTransitionTask, type TransitionInput } from '../api-client';
+import { TARGET_LABEL, type HandoffTarget } from '../lib/handoff-targets';
 import { Icon } from './icons';
 
-/** 引き継ぎ先（in-progress → needs-*）。 */
-type HandoffTarget = 'needs-ai' | 'needs-human';
-
-const TARGET_LABEL: Record<HandoffTarget, string> = {
-  'needs-ai': 'AI待ち',
-  'needs-human': '人間待ち',
-};
+/** 引き継ぎ・差し戻し先（in-progress / in-review → needs-*）。in-review 復帰は UnblockDialog の責務。 */
+const HANDOFF_TARGETS = ['needs-ai', 'needs-human'] as const satisfies readonly HandoffTarget[];
+type NeedsTarget = (typeof HANDOFF_TARGETS)[number];
 
 interface HandoffDialogProps {
   task: Task;
@@ -20,22 +17,24 @@ interface HandoffDialogProps {
   transitionTask?: (id: string, input: TransitionInput) => Promise<Task>;
 }
 
-/** 進行中タスクを needs-* へ引き継ぐダイアログ。引き継ぎ先と handoff_note 必須で PATCH を送る（#04）。 */
+/** 進行中タスクの引き継ぎ、またはレビュー中タスクの差し戻しを行うダイアログ。 */
 export function HandoffDialog({
   task,
   onClose,
   onTransitioned,
   transitionTask = defaultTransitionTask,
 }: HandoffDialogProps) {
-  const [target, setTarget] = useState<HandoffTarget>('needs-ai');
+  const [target, setTarget] = useState<NeedsTarget>('needs-ai');
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const isReviewSendback = task.status === 'in-review';
+  const actionLabel = isReviewSendback ? '差し戻し' : '引き継ぎ';
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
     if (note.trim().length === 0) {
-      setError('引き継ぎメモを入力してください');
+      setError(`${actionLabel}メモを入力してください`);
       return;
     }
 
@@ -59,11 +58,11 @@ export function HandoffDialog({
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <form
         className="unblock-dialog"
-        aria-label="タスクを引き継ぐ"
+        aria-label={isReviewSendback ? 'タスクを差し戻す' : 'タスクを引き継ぐ'}
         onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
       >
-        <h2 className="unblock-dialog__title">引き継ぎ</h2>
+        <h2 className="unblock-dialog__title">{actionLabel}</h2>
 
         {error && (
           <p role="alert" className="unblock-dialog__error">
@@ -72,9 +71,9 @@ export function HandoffDialog({
         )}
 
         <label className="field">
-          <span>引き継ぎ先</span>
-          <select value={target} onChange={(e) => setTarget(e.target.value as HandoffTarget)}>
-            {(Object.keys(TARGET_LABEL) as HandoffTarget[]).map((t) => (
+          <span>{actionLabel}先</span>
+          <select value={target} onChange={(e) => setTarget(e.target.value as NeedsTarget)}>
+            {HANDOFF_TARGETS.map((t) => (
               <option key={t} value={t}>
                 {TARGET_LABEL[t]}
               </option>
@@ -83,7 +82,7 @@ export function HandoffDialog({
         </label>
 
         <label className="field">
-          <span>引き継ぎメモ</span>
+          <span>{actionLabel}メモ</span>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
 
@@ -91,7 +90,12 @@ export function HandoffDialog({
           <button type="button" aria-label="キャンセル" title="キャンセル" onClick={onClose}>
             <Icon name="x" />
           </button>
-          <button type="submit" aria-label="引き継ぐ" title="引き継ぐ" disabled={submitting}>
+          <button
+            type="submit"
+            aria-label={isReviewSendback ? '差し戻す' : '引き継ぐ'}
+            title={isReviewSendback ? '差し戻す' : '引き継ぐ'}
+            disabled={submitting}
+          >
             <Icon name="handoff" />
           </button>
         </div>

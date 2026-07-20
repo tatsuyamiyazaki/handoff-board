@@ -1,11 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { buildApp } from '../src/app.js';
 import type { TokenVerifier } from '../src/auth/auth-middleware.js';
 import { InMemoryTaskRepository } from '../src/repository/in-memory-task-repository.js';
 
-const boardTokens = { 'dev-token': 'cowork' };
+const boardTokens = {
+  'dev-token': 'cowork',
+  'machine-token': 'claude-code:dev',
+};
 
 function fakeVerifier(tokenToEmail: Record<string, string>): TokenVerifier {
   return {
@@ -17,26 +21,16 @@ function fakeVerifier(tokenToEmail: Record<string, string>): TokenVerifier {
   };
 }
 
-const sampleTask = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: 'サンプル',
-  status: 'needs-ai',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: 'お願いします',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_at: '2026-06-01T00:00:00Z',
-  updated_at: '2026-06-01T00:00:00Z',
-  activity: [],
-  ...over,
-});
+const sampleTask = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: 'サンプル',
+    owner: 'cowork',
+    handoff_note: 'お願いします',
+    created_at: '2026-06-01T00:00:00Z',
+    updated_at: '2026-06-01T00:00:00Z',
+    activity: [],
+    ...over,
+  });
 
 describe('GET /api/board', () => {
   let app: FastifyInstance;
@@ -92,10 +86,23 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
-    // 自分（tatsuya）作成1件 + 他人作成1件。人間は自分のだけ、機械系は両方見える。
+    // 自分（tatsuya）作成1件 + 他人作成1件 + 機械系作成1件。
     const repository = new InMemoryTaskRepository([
-      sampleTask({ id: 'mine', created_by: 'tatsuya.miyazaki@gmail.com' }),
-      sampleTask({ id: 'others', created_by: 'someone-else@gmail.com' }),
+      sampleTask({
+        id: 'mine',
+        created_by: 'tatsuya.miyazaki@gmail.com',
+        created_by_type: 'human',
+      }),
+      sampleTask({
+        id: 'others',
+        created_by: 'someone-else@gmail.com',
+        created_by_type: 'human',
+      }),
+      sampleTask({
+        id: 'machine',
+        created_by: 'claude-code:ceo',
+        created_by_type: 'machine',
+      }),
     ]);
     app = buildApp({
       repository,
@@ -115,7 +122,7 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
     await app.close();
   });
 
-  it('人間は自分が作成したタスクのみ 200 で返る（他人作成は除外）', async () => {
+  it('人間は自分と機械系が作成したタスクを返し、他人作成は除外する（ADR-0011）', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/board',
@@ -123,8 +130,8 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0].id).toBe('mine');
+    expect(body.data.map((t: Task) => t.id).sort()).toEqual(['machine', 'mine']);
+    expect(body.data.map((t: Task) => t.id)).not.toContain('others');
   });
 
   it('許可リスト外メールの Bearer は 403', async () => {
@@ -137,14 +144,14 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
     expect(res.json().success).toBe(false);
   });
 
-  it('機械系 X-Board-Token はボード全体（両方）を 200 で返す（絞り込まない）', async () => {
+  it('機械系 X-Board-Token はボード全体を 200 で返す（絞り込まない）', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/board',
       headers: { 'x-board-token': 'dev-token' },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().data).toHaveLength(2);
+    expect(res.json().data).toHaveLength(3);
   });
 });
 
@@ -155,7 +162,11 @@ describe('POST /api/board（作成）', () => {
     const repository = new InMemoryTaskRepository([]);
     app = buildApp({
       repository,
-      auth: { boardTokens },
+      auth: {
+        boardTokens,
+        allowedEmails: ['tatsuya.miyazaki@gmail.com'],
+        tokenVerifier: fakeVerifier({ 'good-id-token': 'tatsuya.miyazaki@gmail.com' }),
+      },
       ids: () => 'fixed-id',
       clock: () => '2026-06-01T00:00:00.000Z',
     });
@@ -170,7 +181,10 @@ describe('POST /api/board（作成）', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/board',
-      headers: { 'x-board-token': 'dev-token' },
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'create-session',
+      },
       payload: {
         title: '記事を書く',
         owner: 'cowork',
@@ -183,10 +197,31 @@ describe('POST /api/board（作成）', () => {
     expect(task.id).toBe('fixed-id');
     expect(task.title).toBe('記事を書く');
     expect(task.status).toBe('needs-ai');
+    expect(task.created_by_type).toBe('machine');
     expect(task.created_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.updated_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.activity).toHaveLength(1);
     expect(task.activity[0]).toMatchObject({ actor: 'cowork', action: 'created' });
+    expect(task.activity[0].session).toBe('create-session');
+  });
+
+  it('人間 Bearer で作成すると created_by_type=human を刻む', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/board',
+      headers: { authorization: 'Bearer good-id-token' },
+      payload: {
+        title: '人間が作るタスク',
+        owner: 'human',
+        handoff_note: '自分で対応',
+        status: 'needs-human',
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().data).toMatchObject({
+      created_by: 'tatsuya.miyazaki@gmail.com',
+      created_by_type: 'human',
+    });
   });
 
   it('必須項目欠落は 422・success=false', async () => {
@@ -269,11 +304,28 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
         blocked_reason: 'API キー待ち',
         updated_at: '2026-06-01T00:00:00Z',
       }),
+      sampleTask({
+        id: 'limit',
+        status: 'in-review',
+        owner: 'claude-code',
+        review_cycles: 1,
+        updated_at: '2026-06-01T00:00:00Z',
+        activity: [
+          {
+            timestamp: '2026-06-01T00:00:00Z',
+            actor: 'claude-code:dev',
+            action: 'in-progress → in-review',
+            from: 'in-progress',
+            to: 'in-review',
+          },
+        ],
+      }),
     ]);
     app = buildApp({
       repository,
       auth: { boardTokens },
       clock: () => '2026-06-01T09:00:00.000Z',
+      reviewCycleLimit: 1,
     });
     await app.ready();
   });
@@ -298,6 +350,127 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
       actor: 'cowork',
       action: 'needs-ai → in-progress',
     });
+  });
+
+  it('X-Agent-Session を activity に記録する', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': '  dev-worktree-a3f2  ',
+      },
+      payload: {
+        to: 'needs-human',
+        handoff_note: '人間の確認をお願いします',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.activity.at(-1).session).toBe('dev-worktree-a3f2');
+  });
+
+  it('X-Agent-Session は 128 文字まで受理し、それを超える値は 422 にする', async () => {
+    const accepted = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'a'.repeat(128),
+      },
+      payload: {
+        to: 'needs-human',
+        handoff_note: '人間の確認をお願いします',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    });
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json().data.activity.at(-1).session).toHaveLength(128);
+
+    const rejected = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/a',
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'a'.repeat(129),
+      },
+      payload: { to: 'in-progress', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(rejected.statusCode).toBe(422);
+    expect(rejected.json().error).toMatch(/X-Agent-Session/);
+  });
+
+  it.each([
+    ['カンマ結合値', 'session-a, session-b'],
+    ['重複ヘッダー配列', ['session-a', 'session-b']],
+  ])('X-Agent-Session の曖昧な %s は 422 にする', async (_label, sessionHeader) => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/a',
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': sessionHeader,
+      },
+      payload: { to: 'in-progress', updated_at: '2026-06-01T00:00:00Z' },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatch(/X-Agent-Session/);
+  });
+
+  it('X-Agent-Session がない場合は activity の session を null にする', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: {
+        to: 'needs-human',
+        handoff_note: '人間の確認をお願いします',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.activity.at(-1).session).toBeNull();
+  });
+
+  it('自己レビューは API 経由でも 422 になる（ADR-0007）', async () => {
+    const submitted = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: { 'x-board-token': 'machine-token' },
+      payload: { to: 'in-review', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(submitted.statusCode).toBe(200);
+
+    const reviewed = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: { 'x-board-token': 'machine-token' },
+      payload: {
+        to: 'done',
+        updated_at: submitted.json().data.updated_at,
+      },
+    });
+    expect(reviewed.statusCode).toBe(422);
+    expect(reviewed.json().error).toMatch(/自己レビュー/);
+  });
+
+  it('注入した reviewCycleLimit を API 境界の差し戻し判定に使う', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/limit',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: {
+        to: 'needs-ai',
+        handoff_note: '追加修正をお願いします',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatch(/差し戻し上限/);
   });
 
   it('禁止遷移（needs-ai→done）は 422', async () => {
@@ -441,12 +614,16 @@ describe('POST /api/board/:id/complete（完了→アーカイブ）', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/board/fin/complete',
-      headers: { 'x-board-token': 'dev-token' },
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'archive-session',
+      },
     });
     expect(res.statusCode).toBe(200);
     const task = res.json().data;
     expect(task.id).toBe('fin');
     expect(task.activity.at(-1)).toMatchObject({ actor: 'cowork', action: 'archived' });
+    expect(task.activity.at(-1).session).toBe('archive-session');
     expect((await repository.findAll()).map((t) => t.id)).not.toContain('fin');
     expect((await repository.findArchivedById('fin'))?.id).toBe('fin');
   });
@@ -511,7 +688,11 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     const repository = new InMemoryTaskRepository([sampleTask({ id: 't1', status: 'in-progress' })]);
     app = buildApp({
       repository,
-      auth: { boardTokens },
+      auth: {
+        boardTokens,
+        allowedEmails: ['human@example.com'],
+        tokenVerifier: fakeVerifier({ 'human-id-token': 'human@example.com' }),
+      },
       clock: () => '2026-06-01T10:00:00.000Z',
     });
     await app.ready();
@@ -525,7 +706,10 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     const res = await app.inject({
       method: 'PATCH',
       url: '/api/board/t1/details',
-      headers: { 'x-board-token': 'dev-token' },
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'edit-session',
+      },
       payload: edit,
     });
     expect(res.statusCode).toBe(200);
@@ -537,6 +721,7 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     expect(t.status).toBe('in-progress'); // 遷移はしない
     expect(t.updated_at).toBe('2026-06-01T10:00:00.000Z');
     expect(t.activity.at(-1).action).toBe('edited');
+    expect(t.activity.at(-1).session).toBe('edit-session');
   });
 
   it('編集で project/milestone を更新する', async () => {
@@ -550,6 +735,33 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     const t = res.json().data;
     expect(t.project).toBe('API刷新');
     expect(t.milestone).toBe('v2');
+  });
+
+  it.each([99, null])(
+    '機械系クライアントは review_cycle_limit=%s に変更できない（422、ADR-0007）',
+    async (reviewCycleLimit) => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { ...edit, review_cycle_limit: reviewCycleLimit },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatch(/人間のみ/);
+    },
+  );
+
+  it('人間クライアントは review_cycle_limit を変更できる', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      headers: { authorization: 'Bearer human-id-token' },
+      payload: { ...edit, review_cycle_limit: 99 },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.review_cycle_limit).toBe(99);
   });
 
   it('不正な入力（title 空）は 422', async () => {

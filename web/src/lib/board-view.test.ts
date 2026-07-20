@@ -1,40 +1,33 @@
 import { describe, it, expect } from 'vitest';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { summarizeBoard, filterTasks, distinctValues, ALL } from './board-view';
 
-const task = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: 'サンプル',
-  status: 'needs-ai',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: '',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_at: '2026-06-01T00:00:00Z',
-  updated_at: '2026-06-01T00:00:00Z',
-  activity: [],
-  ...over,
-});
+const task = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: 'サンプル',
+    owner: 'cowork',
+    handoff_note: '',
+    created_at: '2026-06-01T00:00:00Z',
+    updated_at: '2026-06-01T00:00:00Z',
+    activity: [],
+    ...over,
+  });
 
 describe('summarizeBoard', () => {
-  it('人間アサイン・in-progress・blocked の件数を数える', () => {
+  it('人間アサイン・in-progress・in-review・blocked の件数を数える', () => {
     const summary = summarizeBoard([
       task({ id: '1', owner: 'human', status: 'needs-human' }),
       task({ id: '2', owner: 'human', status: 'in-progress' }),
       task({ id: '3', owner: 'cowork', status: 'in-progress' }),
       task({ id: '4', owner: 'cowork', status: 'blocked' }),
       task({ id: '5', owner: 'claude-code', status: 'done' }),
+      task({ id: '6', owner: 'cowork', status: 'in-review' }),
     ]);
 
     expect(summary.humanAssigned).toBe(2); // owner=human の2件
     expect(summary.inProgress).toBe(2); // status=in-progress の2件
+    expect(summary.inReview).toBe(1); // status=in-review の1件
     expect(summary.blocked).toBe(1); // status=blocked の1件
   });
 });

@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import {
   ok,
@@ -13,6 +13,7 @@ import {
   type Status,
 } from '@handoff/shared';
 import { authenticate, type AuthConfig } from '../auth/auth-middleware.js';
+import { DEFAULT_REVIEW_CYCLE_LIMIT } from '../config.js';
 import type { TaskRepository } from '../repository/task-repository.js';
 
 export interface BoardRouteDeps {
@@ -20,6 +21,8 @@ export interface BoardRouteDeps {
   auth: AuthConfig;
   ids?: () => string;
   clock?: () => string;
+  /** 差し戻し往復のグローバル既定上限（ADR-0007）。未指定は 5。 */
+  reviewCycleLimit?: number;
 }
 
 /** 検証済みの遷移リクエスト本文。 */
@@ -28,6 +31,30 @@ interface TransitionRequest {
   handoff_note?: string;
   blocked_reason?: string;
   updated_at: string;
+}
+
+const MAX_AGENT_SESSION_LENGTH = 128;
+
+/** 自己申告のセッション識別子を履歴記録用に読む。認証・認可には使わない。 */
+function agentSession(request: FastifyRequest): string | null {
+  const raw = request.headers['x-agent-session'];
+  if (Array.isArray(raw) && raw.length !== 1) {
+    throw new ValidationError('X-Agent-Session must be provided at most once');
+  }
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value === undefined) return null;
+
+  const normalized = value.trim();
+  if (normalized.length === 0) return null;
+  if (normalized.includes(',')) {
+    throw new ValidationError('X-Agent-Session must not contain commas');
+  }
+  if (normalized.length > MAX_AGENT_SESSION_LENGTH) {
+    throw new ValidationError(
+      `X-Agent-Session must be at most ${MAX_AGENT_SESSION_LENGTH} characters`,
+    );
+  }
+  return normalized;
 }
 
 /** PATCH 本文を検証する。to は有効 status、updated_at は楽観ロック用に必須。違反は 422。 */
@@ -55,10 +82,11 @@ function parseTransitionRequest(input: unknown): TransitionRequest {
 export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps): void {
   const newId = deps.ids ?? ((): string => randomUUID());
   const now = deps.clock ?? ((): string => new Date().toISOString());
+  const reviewCycleLimit = deps.reviewCycleLimit ?? DEFAULT_REVIEW_CYCLE_LIMIT;
 
   app.get('/api/board', async (request) => {
     const { actor, type } = await authenticate(request.headers, deps.auth);
-    // 人間は自分が作成したタスクのみ。機械系（ディスパッチャー/AI）はボード全体を見る。
+    // 人間は「自分が作成したタスク＋機械系作成タスク」（ADR-0011）。機械系はボード全体を見る。
     const tasks =
       type === 'human'
         ? await deps.repository.findAll({ createdBy: actor })
@@ -67,16 +95,22 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
   });
 
   app.post('/api/board', async (request, reply) => {
-    const { actor } = await authenticate(request.headers, deps.auth);
+    const { actor, type } = await authenticate(request.headers, deps.auth);
     const normalized = validateCreateTask(request.body);
-    const task = buildTask(normalized, { id: newId, now, actor });
+    const task = buildTask(normalized, {
+      id: newId,
+      now,
+      actor,
+      actorType: type,
+      session: agentSession(request),
+    });
     const created = await deps.repository.create(task);
     reply.status(201);
     return ok(created);
   });
 
   app.patch('/api/board/:id', async (request, reply) => {
-    const { actor } = await authenticate(request.headers, deps.auth);
+    const { actor, type } = await authenticate(request.headers, deps.auth);
     const { id } = request.params as { id: string };
     const req = parseTransitionRequest(request.body);
 
@@ -89,7 +123,13 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
     const next = applyTransition(
       current,
       { to: req.to, handoff_note: req.handoff_note, blocked_reason: req.blocked_reason },
-      { now, actor },
+      {
+        now,
+        actor,
+        actorType: type,
+        reviewCycleLimit,
+        session: agentSession(request),
+      },
     );
     const saved = await deps.repository.update(next, req.updated_at);
     return ok(saved);
@@ -98,7 +138,7 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
   // タスク内容の編集。status 遷移とは別経路（title/owner/priority/action_type/handoff_note/tags）。
   // updated_at は楽観ロック照合に必須。検証は shared の validateEditTask、適用は applyEdit。
   app.patch('/api/board/:id/details', async (request, reply) => {
-    const { actor } = await authenticate(request.headers, deps.auth);
+    const { actor, type } = await authenticate(request.headers, deps.auth);
     const { id } = request.params as { id: string };
 
     const body = request.body as Record<string, unknown> | null;
@@ -108,6 +148,9 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
       throw new ValidationError('updated_at is required for optimistic concurrency');
     }
     const normalized = validateEditTask(body);
+    if (normalized.review_cycle_limit !== undefined && type !== 'human') {
+      throw new ValidationError('review_cycle_limit は人間のみ変更できます');
+    }
 
     const current = await deps.repository.findById(id);
     if (current === null) {
@@ -115,7 +158,7 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
       return fail('task not found');
     }
 
-    const next = applyEdit(current, normalized, { now, actor });
+    const next = applyEdit(current, normalized, { now, actor, session: agentSession(request) });
     const saved = await deps.repository.update(next, expectedUpdatedAt);
     return ok(saved);
   });
@@ -157,7 +200,10 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
     const archivedTask = {
       ...current,
       updated_at: timestamp,
-      activity: [...current.activity, { timestamp, actor, action: 'archived' }],
+      activity: [
+        ...current.activity,
+        { timestamp, actor, action: 'archived', session: agentSession(request) },
+      ],
     };
     const saved = await deps.repository.complete(archivedTask);
     return ok(saved);

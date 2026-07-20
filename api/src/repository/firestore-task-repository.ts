@@ -1,10 +1,28 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import { Filter, type Firestore } from 'firebase-admin/firestore';
 import type { Task } from '@handoff/shared';
 import { ConflictError, type BoardFilter, type TaskRepository } from './task-repository.js';
 
 /** 処理中タスクの Firestore コレクション名。archive は完了タスク用（#06）。 */
 const BOARD_COLLECTION = 'board';
 const ARCHIVE_COLLECTION = 'archive';
+
+/** Firestore に保存されているタスク（後方互換: 後付けフィールドは欠落しうる）。 */
+export type StoredTask = Omit<
+  Task,
+  'id' | 'created_by_type' | 'review_cycles' | 'review_cycle_limit'
+> &
+  Partial<Pick<Task, 'created_by_type' | 'review_cycles' | 'review_cycle_limit'>>;
+
+/** 読み出し時の既定値補完（後方互換、ADR-0007 / ADR-0011）。 */
+export function toTask(id: string, data: StoredTask): Task {
+  return {
+    created_by_type: 'human',
+    review_cycles: 0,
+    review_cycle_limit: null,
+    ...data,
+    id,
+  };
+}
 
 /**
  * 本番 / エミュレータ向けの Firestore 実装。
@@ -15,22 +33,24 @@ export class FirestoreTaskRepository implements TaskRepository {
 
   async findAll(filter?: BoardFilter): Promise<Task[]> {
     const collection = this.db.collection(BOARD_COLLECTION);
-    // createdBy 指定時はクエリ段階で絞り込む（全件取得して捨てる無駄を避ける）。
+    // 人間ボード: created_by 一致 ∨ 機械系作成（ADR-0011）。クエリ段階で絞り込む。
     const query =
       filter?.createdBy !== undefined
-        ? collection.where('created_by', '==', filter.createdBy)
+        ? collection.where(
+            Filter.or(
+              Filter.where('created_by', '==', filter.createdBy),
+              Filter.where('created_by_type', '==', 'machine'),
+            ),
+          )
         : collection;
     const snapshot = await query.get();
-    return snapshot.docs.map((doc) => ({
-      ...(doc.data() as Omit<Task, 'id'>),
-      id: doc.id,
-    }));
+    return snapshot.docs.map((doc) => toTask(doc.id, doc.data() as StoredTask));
   }
 
   async findById(id: string): Promise<Task | null> {
     const doc = await this.db.collection(BOARD_COLLECTION).doc(id).get();
     if (!doc.exists) return null;
-    return { ...(doc.data() as Omit<Task, 'id'>), id: doc.id };
+    return toTask(doc.id, doc.data() as StoredTask);
   }
 
   async create(task: Task): Promise<Task> {
@@ -77,14 +97,14 @@ export class FirestoreTaskRepository implements TaskRepository {
   async findArchivedById(id: string): Promise<Task | null> {
     const doc = await this.db.collection(ARCHIVE_COLLECTION).doc(id).get();
     if (!doc.exists) return null;
-    return { ...(doc.data() as Omit<Task, 'id'>), id: doc.id };
+    return toTask(doc.id, doc.data() as StoredTask);
   }
 
   async deleteById(id: string): Promise<Task | null> {
     const ref = this.db.collection(BOARD_COLLECTION).doc(id);
     const doc = await ref.get();
     if (!doc.exists) return null;
-    const task = { ...(doc.data() as Omit<Task, 'id'>), id: doc.id };
+    const task = toTask(doc.id, doc.data() as StoredTask);
     await ref.delete();
     return task;
   }

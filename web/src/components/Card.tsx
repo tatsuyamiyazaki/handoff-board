@@ -53,11 +53,16 @@ export function Card({
 }: CardProps) {
   const [dialog, setDialog] = useState<OpenDialog>(null);
   const [busy, setBusy] = useState(false);
+  const [directError, setDirectError] = useState<string | null>(null);
 
   const transitions = allowedTransitions(task.status);
   const canStart = transitions.includes('in-progress'); // needs-* → in-progress
-  const canComplete = transitions.includes('done'); // in-progress → done
-  const canHandoff = task.status === 'in-progress'; // in-progress → needs-*（メモ必須）
+  const canRequestReview =
+    transitions.includes('in-review') && task.status === 'in-progress';
+  const canComplete = transitions.includes('done'); // in-review → done
+  const canHandoff =
+    task.status === 'in-progress' || task.status === 'in-review'; // → needs-*（メモ必須）
+  const handoffActionLabel = task.status === 'in-review' ? '差し戻し' : '引き継ぎ';
   const canBlock = transitions.includes('blocked');
   const isBlocked = task.status === 'blocked';
   const isDone = task.status === 'done';
@@ -67,12 +72,20 @@ export function Card({
     onTransitioned?.(updated);
   }
 
-  // メモ不要の直接遷移（着手 / 完了）。引き継ぎ・ブロックはダイアログでメモ/理由を取る。
+  function openDialog(nextDialog: Exclude<OpenDialog, null>): void {
+    setDirectError(null);
+    setDialog(nextDialog);
+  }
+
+  // メモ不要の直接遷移（着手 / レビュー依頼 / 完了）。引き継ぎ・ブロックはダイアログでメモ/理由を取る。
   async function handleDirect(to: Task['status']): Promise<void> {
     setBusy(true);
+    setDirectError(null);
     try {
       const updated = await transitionTask(task.id, { to, updated_at: task.updated_at });
       onTransitioned?.(updated);
+    } catch (error: unknown) {
+      setDirectError(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
@@ -80,9 +93,12 @@ export function Card({
 
   async function handleArchive(): Promise<void> {
     setBusy(true);
+    setDirectError(null);
     try {
       const archived = await completeTask(task.id);
       onArchived?.(archived);
+    } catch (error: unknown) {
+      setDirectError(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
@@ -140,8 +156,24 @@ export function Card({
             <Icon name="play" />
           </button>
         )}
+        {canRequestReview && (
+          <button
+            type="button"
+            aria-label="レビュー依頼"
+            title="レビュー依頼"
+            disabled={busy}
+            onClick={() => void handleDirect('in-review')}
+          >
+            <Icon name="check" />
+          </button>
+        )}
         {canHandoff && (
-          <button type="button" aria-label="引き継ぎ" title="引き継ぎ" onClick={() => setDialog('handoff')}>
+          <button
+            type="button"
+            aria-label={handoffActionLabel}
+            title={handoffActionLabel}
+            onClick={() => openDialog('handoff')}
+          >
             <Icon name="handoff" />
           </button>
         )}
@@ -157,12 +189,12 @@ export function Card({
           </button>
         )}
         {canBlock && (
-          <button type="button" aria-label="ブロック" title="ブロック" onClick={() => setDialog('block')}>
+          <button type="button" aria-label="ブロック" title="ブロック" onClick={() => openDialog('block')}>
             <Icon name="ban" />
           </button>
         )}
         {isBlocked && (
-          <button type="button" aria-label="解除" title="解除" onClick={() => setDialog('unblock')}>
+          <button type="button" aria-label="解除" title="解除" onClick={() => openDialog('unblock')}>
             <Icon name="unlock" />
           </button>
         )}
@@ -177,13 +209,18 @@ export function Card({
             <Icon name="archive" />
           </button>
         )}
-        <button type="button" aria-label="編集" title="編集" onClick={() => setDialog('edit')}>
+        <button type="button" aria-label="編集" title="編集" onClick={() => openDialog('edit')}>
           <Icon name="pencil" />
         </button>
-        <button type="button" aria-label="削除" title="削除" onClick={() => setDialog('delete')}>
+        <button type="button" aria-label="削除" title="削除" onClick={() => openDialog('delete')}>
           <Icon name="trash" />
         </button>
       </div>
+      {directError && (
+        <p role="alert" className="card__error">
+          {directError}
+        </p>
+      )}
 
       {dialog === 'block' && (
         <BlockDialog

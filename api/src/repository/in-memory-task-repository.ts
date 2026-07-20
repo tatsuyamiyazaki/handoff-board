@@ -17,7 +17,10 @@ export class InMemoryTaskRepository implements TaskRepository {
   async findAll(filter?: BoardFilter): Promise<Task[]> {
     let tasks = [...this.tasks.values()];
     if (filter?.createdBy !== undefined) {
-      tasks = tasks.filter((t) => t.created_by === filter.createdBy);
+      // 人間ボード: 自分の作成分 ∨ 機械系作成分（ADR-0011）。
+      tasks = tasks.filter(
+        (t) => t.created_by === filter.createdBy || t.created_by_type === 'machine',
+      );
     }
     return tasks.map((t) => structuredClone(t));
   }

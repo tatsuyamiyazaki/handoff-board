@@ -1,29 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { EditDialog } from './EditDialog';
 import { LabelOptionsProvider } from '../lib/label-options';
 
-const task = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: '元タイトル',
-  status: 'in-progress',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: '元メモ',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: ['old'],
-  created_by: 'creator@example.com',
-  created_at: '2026-06-01T00:00:00.000Z',
-  updated_at: '2026-06-01T00:00:00.000Z',
-  activity: [],
-  ...over,
-});
+const task = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: '元タイトル',
+    status: 'in-progress',
+    owner: 'cowork',
+    handoff_note: '元メモ',
+    tags: ['old'],
+    activity: [],
+    ...over,
+  });
 
 describe('EditDialog', () => {
   it('AI 系タスクは department/role をプリフィルし、編集して送る（ADR-0006）', async () => {

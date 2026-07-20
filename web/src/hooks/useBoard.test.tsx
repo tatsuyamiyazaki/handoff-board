@@ -3,28 +3,17 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { useBoard, BOARD_POLL_INTERVAL_MS } from './useBoard';
 
-const task = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: 'サンプル',
-  status: 'needs-ai',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: 'お願いします',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_at: '2026-06-01T00:00:00.000Z',
-  updated_at: '2026-06-01T00:00:00.000Z',
-  activity: [],
-  ...over,
-});
+const task = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: 'サンプル',
+    owner: 'cowork',
+    handoff_note: 'お願いします',
+    activity: [],
+    ...over,
+  });
 
 function wrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

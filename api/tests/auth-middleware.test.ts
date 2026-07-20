@@ -44,6 +44,28 @@ describe('authenticate（機械系 X-Board-Token パス）', () => {
     expect(err.status).toBe(403);
   });
 
+  it.each(['toString', 'constructor', 'valueOf', '__proto__'])(
+    'Object.prototype 由来の名前 %s は空のトークンマップで 403',
+    async (inheritedName) => {
+      const err = await caught(() =>
+        authenticate({ 'x-board-token': inheritedName }, { boardTokens: {} }),
+      );
+      expect(err).toBeInstanceOf(AuthError);
+      expect(err.status).toBe(403);
+    },
+  );
+
+  it.each(['toString', 'constructor', 'valueOf', '__proto__'])(
+    'Object.prototype 由来の名前 %s は設定済みマップでも 403',
+    async (inheritedName) => {
+      const err = await caught(() =>
+        authenticate({ 'x-board-token': inheritedName }, { boardTokens }),
+      );
+      expect(err).toBeInstanceOf(AuthError);
+      expect(err.status).toBe(403);
+    },
+  );
+
   it('認証ヘッダーが一切無ければ 401', async () => {
     const err = await caught(() => authenticate({}, { boardTokens }));
     expect(err).toBeInstanceOf(AuthError);

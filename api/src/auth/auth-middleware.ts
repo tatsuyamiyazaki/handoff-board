@@ -1,6 +1,8 @@
 // リクエストヘッダー → {actor, type} を解決する認証ロジック（ADR-0001 デュアル認証）。
 // 機械系（X-Board-Token）と人間（Firebase Bearer ID トークン + 許可リスト）の2系統。
 
+import type { ActorType } from '@handoff/shared';
+
 /** token 文字列 → actor 種別（例 'cowork'）のマップ。BOARD_TOKENS 由来。 */
 export type BoardTokenMap = Record<string, string>;
 
@@ -25,7 +27,7 @@ export interface AuthConfig {
 export interface AuthResult {
   /** activity.actor に記録する操作主体。機械系はトークン種別。 */
   actor: string;
-  type: 'machine' | 'human';
+  type: ActorType;
 }
 
 /** 認証失敗。HTTP ステータス（401=未認証 / 403=禁止）を持つ。 */
@@ -55,11 +57,10 @@ export async function authenticate(headers: Headers, config: AuthConfig): Promis
   const boardToken = headerValue(headers, 'x-board-token');
 
   if (boardToken !== undefined) {
-    const actor = config.boardTokens[boardToken];
-    if (actor === undefined) {
+    if (!Object.hasOwn(config.boardTokens, boardToken)) {
       throw new AuthError(403, 'invalid board token');
     }
-    return { actor, type: 'machine' };
+    return { actor: config.boardTokens[boardToken], type: 'machine' };
   }
 
   const authorization = headerValue(headers, 'authorization');
