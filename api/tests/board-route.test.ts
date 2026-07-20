@@ -682,7 +682,11 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     const repository = new InMemoryTaskRepository([sampleTask({ id: 't1', status: 'in-progress' })]);
     app = buildApp({
       repository,
-      auth: { boardTokens },
+      auth: {
+        boardTokens,
+        allowedEmails: ['human@example.com'],
+        tokenVerifier: fakeVerifier({ 'human-id-token': 'human@example.com' }),
+      },
       clock: () => '2026-06-01T10:00:00.000Z',
     });
     await app.ready();
@@ -725,6 +729,33 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     const t = res.json().data;
     expect(t.project).toBe('API刷新');
     expect(t.milestone).toBe('v2');
+  });
+
+  it.each([99, null])(
+    '機械系クライアントは review_cycle_limit=%s に変更できない（422、ADR-0007）',
+    async (reviewCycleLimit) => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: { ...edit, review_cycle_limit: reviewCycleLimit },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatch(/人間のみ/);
+    },
+  );
+
+  it('人間クライアントは review_cycle_limit を変更できる', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/t1/details',
+      headers: { authorization: 'Bearer human-id-token' },
+      payload: { ...edit, review_cycle_limit: 99 },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.review_cycle_limit).toBe(99);
   });
 
   it('不正な入力（title 空）は 422', async () => {

@@ -1,5 +1,5 @@
 // タスク内容の編集（純粋・深いモジュール）。status は変えない（遷移は transition.ts の責務）。
-// 編集対象: title / owner / priority / action_type / handoff_note / tags。
+// 編集対象: title / owner / priority / action_type / handoff_note / tags / review_cycle_limit。
 // created_at / created_by / id / status / blocked_reason は不変。
 
 import {
@@ -32,6 +32,8 @@ export interface NormalizedEdit {
   role: Role | null;
   project: string | null;
   milestone: string | null;
+  /** 差し戻し上限の上書き。undefined は変更しない（ADR-0007。人間のみ変更可はルート層で強制）。 */
+  review_cycle_limit: number | null | undefined;
 }
 
 function asRecord(input: unknown): Record<string, unknown> {
@@ -88,8 +90,21 @@ export function validateEditTask(input: unknown): NormalizedEdit {
   const role = normalizeRole(body.role, department);
   const project = normalizeOptionalString(body.project, 'project');
   const milestone = normalizeOptionalString(body.milestone, 'milestone');
+  const review_cycle_limit = normalizeReviewCycleLimit(body.review_cycle_limit);
 
-  return { title, owner, priority, action_type, handoff_note, tags, department, role, project, milestone };
+  return {
+    title,
+    owner,
+    priority,
+    action_type,
+    handoff_note,
+    tags,
+    department,
+    role,
+    project,
+    milestone,
+    review_cycle_limit,
+  };
 }
 
 /** applyEdit の副作用（時刻・実行者）を注入する依存。 */
@@ -98,6 +113,19 @@ export interface EditTaskDeps {
   actor: string;
   /** 自己申告の X-Agent-Session。記録専用（ADR-0008）。 */
   session?: string | null;
+}
+
+/**
+ * review_cycle_limit の正規化（ADR-0007）。undefined=変更しない、null=既定値に戻す、
+ * それ以外は正の整数のみ許可する。
+ */
+export function normalizeReviewCycleLimit(value: unknown): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+    throw new ValidationError('review_cycle_limit must be a positive integer or null');
+  }
+  return value;
 }
 
 /**
@@ -119,6 +147,10 @@ export function applyEdit(task: Task, normalized: NormalizedEdit, deps: EditTask
     role: normalized.role,
     project: normalized.project,
     milestone: normalized.milestone,
+    review_cycle_limit:
+      normalized.review_cycle_limit === undefined
+        ? task.review_cycle_limit
+        : normalized.review_cycle_limit,
     updated_at: timestamp,
     activity: [
       ...task.activity,

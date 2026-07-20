@@ -132,7 +132,7 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
   // タスク内容の編集。status 遷移とは別経路（title/owner/priority/action_type/handoff_note/tags）。
   // updated_at は楽観ロック照合に必須。検証は shared の validateEditTask、適用は applyEdit。
   app.patch('/api/board/:id/details', async (request, reply) => {
-    const { actor } = await authenticate(request.headers, deps.auth);
+    const { actor, type } = await authenticate(request.headers, deps.auth);
     const { id } = request.params as { id: string };
 
     const body = request.body as Record<string, unknown> | null;
@@ -142,6 +142,9 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
       throw new ValidationError('updated_at is required for optimistic concurrency');
     }
     const normalized = validateEditTask(body);
+    if (normalized.review_cycle_limit !== undefined && type !== 'human') {
+      throw new ValidationError('review_cycle_limit は人間のみ変更できます');
+    }
 
     const current = await deps.repository.findById(id);
     if (current === null) {

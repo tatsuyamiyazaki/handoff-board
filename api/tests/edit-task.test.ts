@@ -105,3 +105,37 @@ describe('applyEdit', () => {
     expect(edited.id).toBe(before.id);
   });
 });
+
+describe('review_cycle_limit の編集（ADR-0007）', () => {
+  const editDeps = { now: () => '2026-06-01T09:00:00.000Z', actor: 'editor@example.com' };
+
+  it('未指定なら変更しない（undefined）', () => {
+    const normalized = validateEditTask(valid);
+    expect(normalized.review_cycle_limit).toBeUndefined();
+
+    const edited = applyEdit(
+      baseTask({ review_cycle_limit: 3 }),
+      normalized,
+      editDeps,
+    );
+    expect(edited.review_cycle_limit).toBe(3);
+  });
+
+  it('正の整数と null（既定値に戻す）を受理して適用する', () => {
+    const withLimit = validateEditTask({ ...valid, review_cycle_limit: 8 });
+    const edited = applyEdit(baseTask({ review_cycles: 4 }), withLimit, editDeps);
+    expect(edited.review_cycle_limit).toBe(8);
+    expect(edited.review_cycles).toBe(4);
+
+    const cleared = validateEditTask({ ...valid, review_cycle_limit: null });
+    expect(
+      applyEdit(baseTask({ review_cycle_limit: 8 }), cleared, editDeps).review_cycle_limit,
+    ).toBeNull();
+  });
+
+  it.each([0, -1, 2.5, Number.MAX_SAFE_INTEGER + 1, 'abc'])('不正値 %s は 422', (value) => {
+    expect(() => validateEditTask({ ...valid, review_cycle_limit: value })).toThrow(
+      ValidationError,
+    );
+  });
+});
