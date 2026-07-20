@@ -242,3 +242,29 @@ describe('buildTask', () => {
     expect(task.created_by).toBe('taro@sunbit.co.jp');
   });
 });
+
+describe('validateCreateTask: review_cycle_limit は作成時に指定不可（ADR-0007）', () => {
+  it('review_cycle_limit を含む作成入力は 422 で拒否する（黙殺しない）', () => {
+    expect(() =>
+      validateCreateTask({
+        title: 'T',
+        owner: 'claude-code',
+        handoff_note: 'メモ',
+        status: 'needs-ai',
+        review_cycle_limit: 2,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('null 指定でも作成時は 422（詳細編集経路のみ）', () => {
+    expect(() =>
+      validateCreateTask({
+        title: 'T',
+        owner: 'claude-code',
+        handoff_note: 'メモ',
+        status: 'needs-ai',
+        review_cycle_limit: null,
+      }),
+    ).toThrow(ValidationError);
+  });
+});

@@ -145,6 +145,14 @@ export function validateCreateTask(input: unknown): NormalizedCreate {
   const project = normalizeOptionalString(body.project, 'project');
   const milestone = normalizeOptionalString(body.milestone, 'milestone');
 
+  // review_cycle_limit は作成時に受け付けない（黙殺せず fail-fast、ADR-0006 の厳格拒否原則）。
+  // 設定・変更は /details 経路のみ（人間限定、ADR-0007）。
+  if (body.review_cycle_limit !== undefined) {
+    throw new ValidationError(
+      'review_cycle_limit は作成時には指定できません（詳細編集で人間のみ変更できます）',
+    );
+  }
+
   return { title, owner, handoff_note, status, priority, action_type, tags, department, role, project, milestone };
 }
 

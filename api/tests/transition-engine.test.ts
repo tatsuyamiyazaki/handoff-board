@@ -2,35 +2,22 @@ import { describe, it, expect } from 'vitest';
 import {
   applyTransition,
   allowedTransitions,
+  canRecoverToReview,
   isHandoff,
   ValidationError,
   type Task,
   type TransitionDeps,
 } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 
-const baseTask = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: 'サンプル',
-  status: 'needs-ai',
-  owner: 'human',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: '最初のメモ',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_by_type: 'human',
-  review_cycles: 0,
-  review_cycle_limit: null,
-  created_at: '2026-06-01T00:00:00.000Z',
-  updated_at: '2026-06-01T00:00:00.000Z',
-  activity: [{ timestamp: '2026-06-01T00:00:00.000Z', actor: 'human', action: 'created' }],
-  ...over,
-});
+const baseTask = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: 'サンプル',
+    owner: 'human',
+    handoff_note: '最初のメモ',
+    activity: [{ timestamp: '2026-06-01T00:00:00.000Z', actor: 'human', action: 'created' }],
+    ...over,
+  });
 
 const deps: TransitionDeps = {
   now: () => '2026-06-01T09:00:00.000Z',
@@ -534,5 +521,122 @@ describe('blocked → in-review の復帰条件（ADR-0007）', () => {
     const recovered = applyTransition(blocked, { to: 'in-review' }, policyDeps());
 
     expect(recovered.status).toBe('in-review');
+  });
+});
+
+/** 実装者 dev が提出後、レビュー中断で blocked になったタスク。 */
+function reviewInterruptedTask(over: Partial<Task> = {}): Task {
+  return inReviewTask({
+    status: 'blocked',
+    blocked_reason: '外部要因',
+    activity: [
+      { timestamp: T, actor: 'human@example.com', action: 'created' },
+      {
+        timestamp: T,
+        actor: 'claude-code:dev',
+        action: 'in-progress → in-review',
+        from: 'in-progress',
+        to: 'in-review',
+      },
+      {
+        timestamp: T,
+        actor: 'claude-code:reviewer',
+        action: 'in-review → blocked',
+        from: 'in-review',
+        to: 'blocked',
+      },
+    ],
+    ...over,
+  });
+}
+
+describe('blocked 迂回の差し戻し（レビュー中断中の blocked → needs-ai、ADR-0007 補強）', () => {
+  it('レビュー中断中の blocked → needs-ai は差し戻しとして review_cycles をインクリメントする', () => {
+    const next = applyTransition(
+      reviewInterruptedTask(),
+      { to: 'needs-ai', handoff_note: '指摘' },
+      policyDeps(),
+    );
+    expect(next.review_cycles).toBe(1);
+  });
+
+  it('上限到達後は blocked 迂回でも 422 になる（上限バイパスの遮断）', () => {
+    const task = reviewInterruptedTask({ review_cycles: 5 });
+    expect(() =>
+      applyTransition(task, { to: 'needs-ai', handoff_note: '指摘' }, policyDeps()),
+    ).toThrow(ValidationError);
+  });
+
+  it('上限到達後もエスカレーション（blocked → needs-human）は通る', () => {
+    const next = applyTransition(
+      reviewInterruptedTask({ review_cycles: 5 }),
+      { to: 'needs-human', handoff_note: '5往復未解決' },
+      policyDeps(),
+    );
+    expect(next.status).toBe('needs-human');
+    expect(next.review_cycles).toBe(5);
+  });
+
+  it('提出者と同一 actor は blocked 迂回でも差し戻せない（自己レビュー排除）', () => {
+    expect(() =>
+      applyTransition(
+        reviewInterruptedTask(),
+        { to: 'needs-ai', handoff_note: '自分で差し戻し' },
+        policyDeps({ actor: 'claude-code:dev' }),
+      ),
+    ).toThrow(ValidationError);
+  });
+
+  it('人間のレビュー由来差し戻しは blocked 迂回でもリセットでなくインクリメント', () => {
+    const next = applyTransition(
+      reviewInterruptedTask({ review_cycles: 2 }),
+      { to: 'needs-ai', handoff_note: '指摘' },
+      policyDeps({ actor: 'human@example.com', actorType: 'human' }),
+    );
+    expect(next.review_cycles).toBe(3);
+  });
+
+  it('レビュー由来でない blocked → needs-ai は従来どおり（機械は不変・人間はリセット）', () => {
+    const task = baseTask({
+      status: 'blocked',
+      blocked_reason: '依存待ち',
+      review_cycles: 3,
+      activity: [
+        {
+          timestamp: T,
+          actor: 'claude-code:dev',
+          action: 'in-progress → blocked',
+          from: 'in-progress',
+          to: 'blocked',
+        },
+      ],
+    });
+    const machine = applyTransition(
+      task,
+      { to: 'needs-ai', handoff_note: '引き継ぎ' },
+      policyDeps(),
+    );
+    expect(machine.review_cycles).toBe(3);
+    const human = applyTransition(
+      task,
+      { to: 'needs-ai', handoff_note: '再投入' },
+      policyDeps({ actor: 'human@example.com', actorType: 'human' }),
+    );
+    expect(human.review_cycles).toBe(0);
+  });
+});
+
+describe('canRecoverToReview: 非遷移エントリ（from/to=null）を遷移と誤認しない', () => {
+  it('from/to が null のエントリが後続しても in-review へ復帰できる', () => {
+    const base = reviewInterruptedTask();
+    const task = reviewInterruptedTask({
+      activity: [
+        ...base.activity,
+        { timestamp: T, actor: 'human@example.com', action: 'edited', from: null, to: null },
+      ],
+    });
+    expect(canRecoverToReview(task)).toBe(true);
+    const next = applyTransition(task, { to: 'in-review' }, policyDeps());
+    expect(next.status).toBe('in-review');
   });
 });

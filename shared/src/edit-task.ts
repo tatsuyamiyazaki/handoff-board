@@ -8,6 +8,7 @@ import {
   normalizeRole,
   normalizeOptionalString,
 } from './create-task.js';
+import { canRecoverToReview } from './transition.js';
 import {
   OWNERS,
   PRIORITIES,
@@ -134,6 +135,15 @@ export function normalizeReviewCycleLimit(value: unknown): number | null | undef
  * updated_at を更新して edited の activity を1件付与する。
  */
 export function applyEdit(task: Task, normalized: NormalizedEdit, deps: EditTaskDeps): Task {
+  // レビュー中（in-review、およびレビュー中断中の blocked）の owner 変更は拒否する（ADR-0007）。
+  // owner を human に書き換えてから自己レビューの人間例外を通すラバースタンプ迂回を塞ぐ。
+  const isReviewLocked =
+    task.status === 'in-review' ||
+    (task.status === 'blocked' && canRecoverToReview(task));
+  if (isReviewLocked && normalized.owner !== task.owner) {
+    throw new ValidationError('レビュー中は owner を変更できません（自己レビュー排除の判定を保護）');
+  }
+
   const timestamp = deps.now();
   return {
     ...task,

@@ -48,3 +48,7 @@ CEO オーケストレーション（[ADR-0009](0009-ceo-orchestrator-pull-based
 - 既存タスクのマイグレーション: `review_cycles` 欠落は 0 として読む（後方互換の読み出しデフォルト）。
 - CONTEXT.md は status を 6 値として In Review レーンを含む定義へ更新し、[ADR-0002](0002-status-transitions-as-server-state-machine.md) に本 ADR の amend 注記を追加した。
 - 人間 owner のタスクも、`done` への唯一の入口が `in-review` である以上 `in-review` を必ず経由する（免除されるのはレビュー関門そのものではなく**別レビュアーの介在**）。自己レビュー排除の例外は「**タスクの owner が `human`**、かつ**現遷移を実行している actor の認証種別が `type: 'human'`**（[ADR-0001](0001-dual-auth-machine-token-and-human-firebase.md)）」の場合に限る（人間は自分の作業を自分で完了と宣言できる）。判定に使う認証種別は現遷移の actor のものであり、activity 上の過去 actor の種別推定は行わない。owner が AI 系のタスクにはこの例外を適用しない — 人間が AI タスクを**レビューする**のは別 actor 遷移として例外なしで通る一方、人間が AI タスクを実装（`in-progress → in-review`）から完了まで単独で通すラバースタンプ経路は塞ぐ。
+- **補強（2026-07-21、実装レビューによる迂回経路の閉塞）**:
+  - **blocked 迂回の差し戻しも往復として扱う**: レビュー中断中の blocked（直近の遷移が `in-review → blocked`、復帰判定 `canRecoverToReview` と同一の述語）から `needs-ai` へ出る遷移は、`in-review → needs-ai` と同じ規則（遷移前値での上限判定・`review_cycles` インクリメント・自己レビュー排除）を適用する。これを欠くと `in-review → blocked → needs-ai` の 2 手で上限とレビュアー分離を素通りできてしまう。レビュー由来でない blocked からの `needs-ai` は従来どおり（機械系は不変、人間はリセット）。
+  - **レビュー中の owner 変更禁止**: `in-review` およびレビュー中断中の blocked にあるタスクの owner は `/details` 編集で変更できない（422）。owner を `human` に書き換えてから人間例外で自己完了するラバースタンプ迂回を塞ぐ。
+  - **作成時の `review_cycle_limit` 指定は 422**: `POST /api/board` はこのフィールドを黙殺せず明示拒否する（設定・変更は `/details` 経路の人間のみ。[ADR-0006](0006-owner-department-role-three-axes.md) の厳格拒否原則）。

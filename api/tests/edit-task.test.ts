@@ -1,29 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { validateEditTask, applyEdit, ValidationError, type Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 
-const baseTask = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: '元タイトル',
-  status: 'in-progress',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: '元メモ',
-  blocked_reason: null,
-  tags: ['old'],
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  created_by: 'creator@example.com',
-  created_by_type: 'human',
-  review_cycles: 0,
-  review_cycle_limit: null,
-  created_at: '2026-06-01T00:00:00.000Z',
-  updated_at: '2026-06-01T00:00:00.000Z',
-  activity: [{ timestamp: '2026-06-01T00:00:00.000Z', actor: 'creator@example.com', action: 'created' }],
-  ...over,
-});
+const baseTask = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: '元タイトル',
+    status: 'in-progress',
+    owner: 'cowork',
+    handoff_note: '元メモ',
+    tags: ['old'],
+    ...over,
+  });
 
 const valid = {
   title: '新タイトル',
@@ -137,5 +124,68 @@ describe('review_cycle_limit の編集（ADR-0007）', () => {
     expect(() => validateEditTask({ ...valid, review_cycle_limit: value })).toThrow(
       ValidationError,
     );
+  });
+});
+
+describe('applyEdit: レビュー中の owner 変更禁止（ADR-0007 補強）', () => {
+  const editDeps = { now: () => '2026-06-01T09:00:00.000Z', actor: 'editor@example.com' };
+  /** 実装者 dev が提出済みの in-review タスク。 */
+  const inReviewTask = (over: Partial<Task> = {}): Task =>
+    baseTask({
+      status: 'in-review',
+      owner: 'claude-code',
+      activity: [
+        {
+          timestamp: '2026-06-01T00:00:00.000Z',
+          actor: 'claude-code:dev',
+          action: 'in-progress → in-review',
+          from: 'in-progress',
+          to: 'in-review',
+        },
+      ],
+      ...over,
+    });
+
+  it('in-review 中に owner を変える編集は 422（ラバースタンプ迂回の遮断）', () => {
+    const normalized = validateEditTask({ ...valid, owner: 'human' });
+    expect(() => applyEdit(inReviewTask(), normalized, editDeps)).toThrow(ValidationError);
+  });
+
+  it('in-review 中でも owner を変えない編集は通る', () => {
+    const normalized = validateEditTask({ ...valid, owner: 'claude-code' });
+    const next = applyEdit(inReviewTask(), normalized, editDeps);
+    expect(next.title).toBe('新タイトル');
+    expect(next.owner).toBe('claude-code');
+  });
+
+  it('レビュー中断中の blocked でも owner 変更は 422', () => {
+    const task = inReviewTask({
+      status: 'blocked',
+      blocked_reason: '外部要因',
+      activity: [
+        {
+          timestamp: '2026-06-01T00:00:00.000Z',
+          actor: 'claude-code:dev',
+          action: 'in-progress → in-review',
+          from: 'in-progress',
+          to: 'in-review',
+        },
+        {
+          timestamp: '2026-06-01T00:00:00.000Z',
+          actor: 'claude-code:reviewer',
+          action: 'in-review → blocked',
+          from: 'in-review',
+          to: 'blocked',
+        },
+      ],
+    });
+    const normalized = validateEditTask({ ...valid, owner: 'human' });
+    expect(() => applyEdit(task, normalized, editDeps)).toThrow(ValidationError);
+  });
+
+  it('レビュー外（in-progress）の owner 変更は従来どおり通る', () => {
+    const normalized = validateEditTask({ ...valid, owner: 'human' });
+    const next = applyEdit(baseTask(), normalized, editDeps);
+    expect(next.owner).toBe('human');
   });
 });

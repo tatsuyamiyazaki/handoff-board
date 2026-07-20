@@ -2,7 +2,7 @@
 // needs-* ↔ in-progress → in-review → done。blocked は作業・レビューの中断と復帰を扱う。
 
 import { ValidationError } from './create-task.js';
-import type { ActorType, Status, Task } from './task.js';
+import type { ActivityEntry, ActorType, Status, Task } from './task.js';
 
 /**
  * status 遷移の入力。
@@ -45,15 +45,30 @@ export function allowedTransitions(from: Status): Status[] {
   return [...ALLOWED_TRANSITIONS[from]];
 }
 
+/** activity を末尾から走査し、述語に合う最初のエントリを返す（配列コピーなし）。 */
+function findLastEntry(
+  activity: readonly ActivityEntry[],
+  predicate: (entry: ActivityEntry) => boolean,
+): ActivityEntry | undefined {
+  for (let i = activity.length - 1; i >= 0; i--) {
+    const entry = activity[i];
+    if (predicate(entry)) return entry;
+  }
+  return undefined;
+}
+
 /** レビュー中断から blocked になったタスクが in-review へ復帰できるか。 */
 export function canRecoverToReview(
   task: Pick<Task, 'status' | 'activity'>,
 ): boolean {
   if (task.status !== 'blocked') return false;
 
-  const latestTransition = [...task.activity]
-    .reverse()
-    .find((entry) => entry.from !== undefined && entry.to !== undefined);
+  // 非遷移エントリは from/to が null または欠落のどちらもありうる（task.ts の契約）ため、
+  // 両方を除外して「最新の遷移エントリ」を特定する。
+  const latestTransition = findLastEntry(
+    task.activity,
+    (entry) => entry.from != null && entry.to != null,
+  );
   return latestTransition?.from === 'in-review' && latestTransition.to === 'blocked';
 }
 
@@ -91,10 +106,15 @@ export function applyTransition(
     throw new ValidationError('ブロックには blocked_reason が必須です');
   }
 
-  assertNotSelfReview(task, input.to, deps);
+  // レビュー中断中（in-review 由来の blocked）は blocked 迂回でも in-review と同じ規則を適用する。
+  // これを外すと in-review → blocked → needs-ai の迂回で上限と自己レビュー排除を素通りできてしまう。
+  const isReviewing =
+    task.status === 'in-review' || (task.status === 'blocked' && canRecoverToReview(task));
+
+  assertNotSelfReview(task, input.to, deps, isReviewing);
 
   // 差し戻し上限は遷移前の値で判定し、拒否時はカウンタを変更しない（ADR-0007）。
-  const isSendback = task.status === 'in-review' && input.to === 'needs-ai';
+  const isSendback = isReviewing && input.to === 'needs-ai';
   if (isSendback) {
     const limit = task.review_cycle_limit ?? deps.reviewCycleLimit;
     if (task.review_cycles >= limit) {
@@ -104,9 +124,10 @@ export function applyTransition(
     }
   }
 
-  // 人間による in-review 以外からの再投入は、新しいレビュー予算としてリセットする。
+  // 人間によるレビュー外からの再投入は、新しいレビュー予算としてリセットする。
+  // レビュー由来の差し戻し（in-review 直接・blocked 迂回とも）はリセットでなくインクリメント。
   const isHumanReinjection =
-    input.to === 'needs-ai' && task.status !== 'in-review' && deps.actorType === 'human';
+    input.to === 'needs-ai' && !isReviewing && deps.actorType === 'human';
   const review_cycles = isSendback
     ? task.review_cycles + 1
     : isHumanReinjection
@@ -149,18 +170,24 @@ function assertReviewRecovery(task: Task, to: Status): void {
 }
 
 /**
- * 自己レビュー排除（ADR-0007）。in-review から done / needs-ai へ進める actor は、
- * 直近の構造化 in-progress → in-review を実行した actor と異なる必要がある。
- * owner=human かつ現在の actor も human の場合だけ、自分の作業を自分で完了できる。
+ * 自己レビュー排除（ADR-0007）。レビュー中（in-review、およびレビュー中断中の blocked）から
+ * done / needs-ai へ進める actor は、直近の構造化 in-progress → in-review を実行した actor と
+ * 異なる必要がある。owner=human かつ現在の actor も human の場合だけ、自分の作業を自分で完了できる。
  * 構造化提出履歴がない旧データは判定不能として通す。
  */
-function assertNotSelfReview(task: Task, to: Status, deps: TransitionDeps): void {
-  if (task.status !== 'in-review') return;
+function assertNotSelfReview(
+  task: Task,
+  to: Status,
+  deps: TransitionDeps,
+  isReviewing: boolean,
+): void {
+  if (!isReviewing) return;
   if (to !== 'done' && to !== 'needs-ai') return;
 
-  const submitted = [...task.activity]
-    .reverse()
-    .find((entry) => entry.from === 'in-progress' && entry.to === 'in-review');
+  const submitted = findLastEntry(
+    task.activity,
+    (entry) => entry.from === 'in-progress' && entry.to === 'in-review',
+  );
   if (submitted === undefined || submitted.actor !== deps.actor) return;
   if (task.owner === 'human' && deps.actorType === 'human') return;
 
