@@ -50,6 +50,29 @@ describe('InMemoryTaskRepository.findAll', () => {
     const result = await repo.findAll({ createdBy: 'me@example.com' });
     expect(result.map((t) => t.id)).toEqual(['mine']);
   });
+
+  it('createdBy 指定時、機械系作成タスクも返す（ADR-0011）', async () => {
+    const mine = sampleTask({
+      id: 't1',
+      created_by: 'me@example.com',
+      created_by_type: 'human',
+    });
+    const others = sampleTask({
+      id: 't2',
+      created_by: 'other@example.com',
+      created_by_type: 'human',
+    });
+    const machine = sampleTask({
+      id: 't3',
+      created_by: 'claude-code:ceo',
+      created_by_type: 'machine',
+    });
+    const repo = new InMemoryTaskRepository([mine, others, machine]);
+
+    const tasks = await repo.findAll({ createdBy: 'me@example.com' });
+
+    expect(tasks.map((t) => t.id).sort()).toEqual(['t1', 't3']);
+  });
 });
 
 describe('InMemoryTaskRepository.findById', () => {

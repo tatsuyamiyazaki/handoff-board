@@ -58,7 +58,7 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
 
   app.get('/api/board', async (request) => {
     const { actor, type } = await authenticate(request.headers, deps.auth);
-    // 人間は自分が作成したタスクのみ。機械系（ディスパッチャー/AI）はボード全体を見る。
+    // 人間は「自分が作成したタスク＋機械系作成タスク」（ADR-0011）。機械系はボード全体を見る。
     const tasks =
       type === 'human'
         ? await deps.repository.findAll({ createdBy: actor })

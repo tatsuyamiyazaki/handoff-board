@@ -1,8 +1,8 @@
 import type { Task } from '@handoff/shared';
 
-/** findAll の絞り込み条件。createdBy 指定時は created_by 完全一致のタスクのみ返す。 */
+/** findAll の絞り込み条件。createdBy 指定時は「created_by 一致 ∨ 作成主体が機械系」を返す（ADR-0011）。 */
 export interface BoardFilter {
-  /** 作成者（created_by）でボードを絞り込む。人間UIは自分のメールを渡す。 */
+  /** 人間ボードの絞り込み。自分の作成分に加え、機械系作成タスク（created_by_type='machine'）も含める。 */
   createdBy?: string;
 }
 
@@ -20,7 +20,7 @@ export class ConflictError extends Error {
  * #01 findAll、#03 create、#04 findById/update、#06 complete/findArchivedById を追加。
  */
 export interface TaskRepository {
-  /** 処理中ボード（board コレクション）のタスクを返す。filter.createdBy 指定時は作成者で絞り込む。 */
+  /** 処理中ボードのタスクを返す。filter.createdBy 指定時は自分の作成分と機械系作成分に絞り込む。 */
   findAll(filter?: BoardFilter): Promise<Task[]>;
   /** id 一致のタスクを返す。無ければ null。board コレクションのみ対象。 */
   findById(id: string): Promise<Task | null>;

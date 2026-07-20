@@ -93,10 +93,23 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
-    // 自分（tatsuya）作成1件 + 他人作成1件。人間は自分のだけ、機械系は両方見える。
+    // 自分（tatsuya）作成1件 + 他人作成1件 + 機械系作成1件。
     const repository = new InMemoryTaskRepository([
-      sampleTask({ id: 'mine', created_by: 'tatsuya.miyazaki@gmail.com' }),
-      sampleTask({ id: 'others', created_by: 'someone-else@gmail.com' }),
+      sampleTask({
+        id: 'mine',
+        created_by: 'tatsuya.miyazaki@gmail.com',
+        created_by_type: 'human',
+      }),
+      sampleTask({
+        id: 'others',
+        created_by: 'someone-else@gmail.com',
+        created_by_type: 'human',
+      }),
+      sampleTask({
+        id: 'machine',
+        created_by: 'claude-code:ceo',
+        created_by_type: 'machine',
+      }),
     ]);
     app = buildApp({
       repository,
@@ -116,7 +129,7 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
     await app.close();
   });
 
-  it('人間は自分が作成したタスクのみ 200 で返る（他人作成は除外）', async () => {
+  it('人間は自分と機械系が作成したタスクを返し、他人作成は除外する（ADR-0011）', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/board',
@@ -124,8 +137,8 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0].id).toBe('mine');
+    expect(body.data.map((t: Task) => t.id).sort()).toEqual(['machine', 'mine']);
+    expect(body.data.map((t: Task) => t.id)).not.toContain('others');
   });
 
   it('許可リスト外メールの Bearer は 403', async () => {
@@ -138,14 +151,14 @@ describe('GET /api/board（人間 Firebase Bearer パス統合）', () => {
     expect(res.json().success).toBe(false);
   });
 
-  it('機械系 X-Board-Token はボード全体（両方）を 200 で返す（絞り込まない）', async () => {
+  it('機械系 X-Board-Token はボード全体を 200 で返す（絞り込まない）', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/board',
       headers: { 'x-board-token': 'dev-token' },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().data).toHaveLength(2);
+    expect(res.json().data).toHaveLength(3);
   });
 });
 
