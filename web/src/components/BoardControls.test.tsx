@@ -1,43 +1,32 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { BoardControls } from './BoardControls';
 import { ALL, type BoardFilter } from '../lib/board-view';
 
-const task = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: 'サンプル',
-  status: 'needs-ai',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: '',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_by_type: 'human',
-  review_cycles: 0,
-  review_cycle_limit: null,
-  created_at: '2026-06-01T00:00:00Z',
-  updated_at: '2026-06-01T00:00:00Z',
-  activity: [],
-  ...over,
-});
+const task = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: 'サンプル',
+    owner: 'cowork',
+    handoff_note: '',
+    created_at: '2026-06-01T00:00:00Z',
+    updated_at: '2026-06-01T00:00:00Z',
+    activity: [],
+    ...over,
+  });
 
 const allFilter: BoardFilter = { owner: ALL, department: ALL, project: ALL, milestone: ALL };
 
 describe('BoardControls', () => {
-  it('サマリに人間アサイン・進行中・ブロックの件数を表示する', () => {
+  it('サマリに人間アサイン・進行中・レビュー中・ブロックの件数を表示する', () => {
     render(
       <BoardControls
         tasks={[
           task({ id: '1', owner: 'human', status: 'needs-human' }),
           task({ id: '2', owner: 'cowork', status: 'in-progress' }),
           task({ id: '3', owner: 'cowork', status: 'blocked' }),
+          task({ id: '4', owner: 'cowork', status: 'in-review' }),
         ]}
         filter={allFilter}
         onFilterChange={() => {}}
@@ -46,6 +35,7 @@ describe('BoardControls', () => {
 
     expect(within(screen.getByLabelText('人間アサイン')).getByText('1')).toBeInTheDocument();
     expect(within(screen.getByLabelText('進行中')).getByText('1')).toBeInTheDocument();
+    expect(within(screen.getByLabelText('レビュー中')).getByText('1')).toBeInTheDocument();
     expect(within(screen.getByLabelText('ブロック')).getByText('1')).toBeInTheDocument();
   });
 

@@ -6,6 +6,8 @@ export interface BoardSummary {
   humanAssigned: number;
   /** status=in-progress のタスク数。 */
   inProgress: number;
+  /** status=in-review のタスク数。 */
+  inReview: number;
   /** status=blocked のタスク数。 */
   blocked: number;
 }
@@ -15,6 +17,7 @@ export function summarizeBoard(tasks: Task[]): BoardSummary {
   return {
     humanAssigned: tasks.filter((t) => t.owner === 'human').length,
     inProgress: tasks.filter((t) => t.status === 'in-progress').length,
+    inReview: tasks.filter((t) => t.status === 'in-review').length,
     blocked: tasks.filter((t) => t.status === 'blocked').length,
   };
 }

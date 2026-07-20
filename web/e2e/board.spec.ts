@@ -6,7 +6,7 @@ test('本番エントリがサインイン前のシェルを表示する', async
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'HANDOFF', level: 1 })).toBeVisible();
   await expect(
-    page.getByText('サインインすると、あなたが作成したタスクのボードが表示されます。'),
+    page.getByText('サインインすると、あなたが作成したタスクと AI が作成したタスクのボードが表示されます。'),
   ).toBeVisible();
 });
 

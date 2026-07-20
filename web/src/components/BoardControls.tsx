@@ -25,6 +25,10 @@ export function BoardControls({ tasks, filter, onFilterChange }: BoardControlsPr
           <dt className="stat__label">進行中</dt>
           <dd className="stat__value">{summary.inProgress}</dd>
         </div>
+        <div className="stat" aria-label="レビュー中">
+          <dt className="stat__label">レビュー中</dt>
+          <dd className="stat__value">{summary.inReview}</dd>
+        </div>
         <div className="stat" aria-label="ブロック">
           <dt className="stat__label">ブロック</dt>
           <dd className="stat__value">{summary.blocked}</dd>

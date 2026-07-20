@@ -129,7 +129,7 @@ export function App() {
           </>
         ) : (
           <p className="app__signin-prompt">
-            サインインすると、あなたが作成したタスクのボードが表示されます。
+            サインインすると、あなたが作成したタスクと AI が作成したタスクのボードが表示されます。
           </p>
         )}
         {showCreate && (

@@ -93,9 +93,12 @@ export function Card({
 
   async function handleArchive(): Promise<void> {
     setBusy(true);
+    setDirectError(null);
     try {
       const archived = await completeTask(task.id);
       onArchived?.(archived);
+    } catch (error: unknown) {
+      setDirectError(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
