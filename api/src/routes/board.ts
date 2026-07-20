@@ -38,11 +38,17 @@ const MAX_AGENT_SESSION_LENGTH = 128;
 /** 自己申告のセッション識別子を履歴記録用に読む。認証・認可には使わない。 */
 function agentSession(request: FastifyRequest): string | null {
   const raw = request.headers['x-agent-session'];
+  if (Array.isArray(raw) && raw.length !== 1) {
+    throw new ValidationError('X-Agent-Session must be provided at most once');
+  }
   const value = Array.isArray(raw) ? raw[0] : raw;
   if (value === undefined) return null;
 
   const normalized = value.trim();
   if (normalized.length === 0) return null;
+  if (normalized.includes(',')) {
+    throw new ValidationError('X-Agent-Session must not contain commas');
+  }
   if (normalized.length > MAX_AGENT_SESSION_LENGTH) {
     throw new ValidationError(
       `X-Agent-Session must be at most ${MAX_AGENT_SESSION_LENGTH} characters`,

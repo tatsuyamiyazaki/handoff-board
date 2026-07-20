@@ -57,6 +57,9 @@ export async function authenticate(headers: Headers, config: AuthConfig): Promis
   const boardToken = headerValue(headers, 'x-board-token');
 
   if (boardToken !== undefined) {
+    if (!Object.hasOwn(config.boardTokens, boardToken)) {
+      throw new AuthError(403, 'invalid board token');
+    }
     const actor = config.boardTokens[boardToken];
     if (actor === undefined) {
       throw new AuthError(403, 'invalid board token');

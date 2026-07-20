@@ -25,6 +25,10 @@ describe('loadBoardTokens の actor 形式検証（ADR-0008）', () => {
     ['claude-code:', '機能が空'],
     ['a:b:c', 'コロン複数'],
     ['', '空文字'],
+    ['claude code', '空白'],
+    ['claude-code:dev ops', '機能内の空白'],
+    ['claude-code:\nreview', '制御文字'],
+    ['claude-code:\u0085review', 'C1 制御文字'],
   ])('不正な actor 形式 %s（%s）は起動時に throw する', (actor) => {
     expect(() => loadBoardTokens(JSON.stringify({ token: actor }))).toThrow(/actor/);
   });
@@ -80,7 +84,10 @@ describe('loadReviewCycleLimit（ADR-0007）', () => {
     expect(loadReviewCycleLimit('3')).toBe(3);
   });
 
-  test.each(['0', '-1', '2.5', 'abc'])('不正値 %s は throw する', (raw) => {
-    expect(() => loadReviewCycleLimit(raw)).toThrow(/REVIEW_CYCLE_LIMIT/);
-  });
+  test.each(['0', '-1', '2.5', 'abc', '9007199254740992'])(
+    '不正値 %s は throw する',
+    (raw) => {
+      expect(() => loadReviewCycleLimit(raw)).toThrow(/REVIEW_CYCLE_LIMIT/);
+    },
+  );
 });

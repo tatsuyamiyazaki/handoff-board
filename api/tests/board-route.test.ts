@@ -413,6 +413,24 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
     expect(rejected.json().error).toMatch(/X-Agent-Session/);
   });
 
+  it.each([
+    ['カンマ結合値', 'session-a, session-b'],
+    ['重複ヘッダー配列', ['session-a', 'session-b']],
+  ])('X-Agent-Session の曖昧な %s は 422 にする', async (_label, sessionHeader) => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/a',
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': sessionHeader,
+      },
+      payload: { to: 'in-progress', updated_at: '2026-06-01T00:00:00Z' },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatch(/X-Agent-Session/);
+  });
+
   it('X-Agent-Session がない場合は activity の session を null にする', async () => {
     const res = await app.inject({
       method: 'PATCH',

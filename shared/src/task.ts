@@ -90,12 +90,12 @@ export interface ActivityEntry {
   action: string;
   /**
    * 自己申告のセッション識別子（X-Agent-Session、ADR-0008）。記録専用で認証・強制には使わない。
-   * 省略（既存データ）は null 扱い。
+   * 新規エントリは文字列または null。既存データではフィールド自体が無い場合もある。
    */
   session?: string | null;
-  /** 遷移エントリの構造化 from（ADR-0007。文字列パースに依存しない自己レビュー判定用）。遷移以外・既存データは null。 */
+  /** 遷移エントリの構造化 from（ADR-0007。文字列パースに依存しない自己レビュー判定用）。遷移以外は null、既存データでは欠落もある。 */
   from?: Status | null;
-  /** 遷移エントリの構造化 to。遷移以外・既存データは null。 */
+  /** 遷移エントリの構造化 to。遷移以外は null、既存データでは欠落もある。 */
   to?: Status | null;
 }
 

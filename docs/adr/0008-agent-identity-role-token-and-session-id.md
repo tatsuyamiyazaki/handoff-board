@@ -13,8 +13,8 @@ accepted — [ADR-0006](0006-owner-department-role-three-axes.md) の帰結の�
   ```
 
   actor 文字列は `owner[:機能]` 形式とする。この actor が**サーバー側で実行時強制を行う際の主体単位**である。比較規則は用途で異なる: **自己レビュー排除（[ADR-0007](0007-in-review-state-and-review-cycle-limit.md)）は actor 文字列の完全一致**で判定する（`claude-code:dev` と `claude-code:reviewer` は別 actor であり、この差が実行者とレビュアーの分離を成立させる。owner 前方一致で実装すると両者が同一視され、正当なレビュアーの遷移が 422 で弾かれることに注意）。`:` より前の owner 部分を使うのは、機械系作成タスクの絞り込み等の**照合（読み取り）用途のみ**で、強制判定には使わない。
-- actor 形式の厳密仕様: **最初の `:` で owner と機能に分割**する。owner・機能のいずれかが空になる値（`:dev`、`claude-code:`）と、機能部分に `:` を含む値（`a:b:c`）は不正とし、`BOARD_TOKENS` の**読み込み時（サーバー起動時）に検証エラーで fail-fast** する（不正 actor がリクエスト時まで残らない）。owner 前方一致（読み取り用途）は「`actor === owner` ∨ actor が `owner + ':'` で始まる」と定義する（単純な `startsWith(owner)` では `claude-code` が `claude-code-2` に誤マッチする）。
-- 機械系クライアントは任意ヘッダー **`X-Agent-Session`** で自己申告のセッション識別子（例: `dev-worktree-a3f2`）を送れる。サーバーは値を trim し、空白だけなら null、128文字超なら 422 とする。値は `ActivityEntry` の任意フィールド `session?: string | null` に記録し、新規エントリでは正規化後の文字列または null、既存データではフィールド欠落も許す。これは**トレーサビリティ（記録）の単位**であり、認証にも強制にも使わない。
+- actor 形式の厳密仕様: **最初の `:` で owner と機能に分割**する。owner・機能のいずれかが空になる値（`:dev`、`claude-code:`）、機能部分に `:` を含む値（`a:b:c`）、空白・制御文字を含む値は不正とし、`BOARD_TOKENS` の**読み込み時（サーバー起動時）に検証エラーで fail-fast** する（不正 actor がリクエスト時まで残らない）。認証時はトークンマップの own property だけを有効とし、`Object.prototype` 由来の名前を拒否する。owner 前方一致（読み取り用途）は「`actor === owner` ∨ actor が `owner + ':'` で始まる」と定義する（単純な `startsWith(owner)` では `claude-code` が `claude-code-2` に誤マッチする）。
+- 機械系クライアントは任意ヘッダー **`X-Agent-Session`** で自己申告のセッション識別子（例: `dev-worktree-a3f2`）を送れる。ヘッダーは1回だけ、値はカンマを含まないものとし、サーバーは値を trim し、空白だけなら null、128文字超または曖昧な重複・カンマ結合値なら 422 とする。値は `ActivityEntry` の任意フィールド `session?: string | null` に記録し、新規エントリでは正規化後の文字列または null、既存データではフィールド欠落も許す。これは**トレーサビリティ（記録）の単位**であり、認証にも強制にも使わない。
 - worktree 並列実行の追跡は「actor（認証済み）＋ session（自己申告）」の合成で行う。ボードのスキーマとしてはこれ以上のプロセス識別基盤（動的トークン発行等）を持たない。
 
 ## 文脈とトレードオフ
@@ -32,9 +32,9 @@ accepted — [ADR-0006](0006-owner-department-role-three-axes.md) の帰結の�
 
 ## 帰結
 
-- `api/src/auth/auth-middleware.ts`: 解決ロジックは変更不要（token→actor マップの値が細分化されるだけ）。ただし `BOARD_TOKENS` の読み込み箇所に、決定に定めた actor 形式の**起動時検証（fail-fast）**を追加する。運用値も新形式に更新する。
+- `api/src/auth/auth-middleware.ts`: token→actor マップは own property の完全一致で解決し、継承プロパティ名による認証を拒否する。`BOARD_TOKENS` の読み込み箇所は、決定に定めた actor 形式を**起動時検証（fail-fast）**する。運用値も新形式に更新する。
 - `shared/src/task.ts`: `ActivityEntry` に任意の `session?: string | null` を追加した。新規エントリは文字列または null を記録し、既存データの欠落は `undefined` のまま許容する。
-- api: `X-Agent-Session` を trim・空白→null・128文字上限で検証し、作成・遷移・詳細編集・アーカイブの activity 追記時に伝搬する。
+- api: `X-Agent-Session` を単一・カンマ無し・trim・空白→null・128文字上限で検証し、作成・遷移・詳細編集・アーカイブの activity 追記時に伝搬する。
 - 自己レビュー排除（ADR-0007）の判定は actor 完全一致で行う。dev トークンで `in-progress → in-review` したタスクは、**その dev トークン以外の任意の actor** が `done` / 差し戻しにできる（reviewer トークン限定ではない。レビューを reviewer トークンで行うのは運用上の推奨であり、サーバーは actor の「機能」部分を解釈しない）。
 - 同一人物が同一機能のトークンを複数発行すると（例: `cc-dev-a` / `cc-dev-b`）、完全一致判定は素通りできる。自己レビュー排除の実効性は「**1機能1トークン**」という発行規律（規約）に依存し、構造的には防げない。これは脅威モデル（性善説＋事故 — トークンは人間が手動発行するため事故では増殖しない）の下で意図的に受容する。
 - handoff-mcp: 環境変数でトークンとセッション ID を受け取り、全リクエストに付与する。worktree 起動スクリプトはセッション ID（例: ブランチ名＋短ハッシュ）を生成して渡す。
