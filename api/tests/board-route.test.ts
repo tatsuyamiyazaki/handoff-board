@@ -5,7 +5,10 @@ import { buildApp } from '../src/app.js';
 import type { TokenVerifier } from '../src/auth/auth-middleware.js';
 import { InMemoryTaskRepository } from '../src/repository/in-memory-task-repository.js';
 
-const boardTokens = { 'dev-token': 'cowork' };
+const boardTokens = {
+  'dev-token': 'cowork',
+  'machine-token': 'claude-code:dev',
+};
 
 function fakeVerifier(tokenToEmail: Record<string, string>): TokenVerifier {
   return {
@@ -313,11 +316,28 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
         blocked_reason: 'API キー待ち',
         updated_at: '2026-06-01T00:00:00Z',
       }),
+      sampleTask({
+        id: 'limit',
+        status: 'in-review',
+        owner: 'claude-code',
+        review_cycles: 1,
+        updated_at: '2026-06-01T00:00:00Z',
+        activity: [
+          {
+            timestamp: '2026-06-01T00:00:00Z',
+            actor: 'claude-code:dev',
+            action: 'in-progress → in-review',
+            from: 'in-progress',
+            to: 'in-review',
+          },
+        ],
+      }),
     ]);
     app = buildApp({
       repository,
       auth: { boardTokens },
       clock: () => '2026-06-01T09:00:00.000Z',
+      reviewCycleLimit: 1,
     });
     await app.ready();
   });
@@ -407,6 +427,44 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().data.activity.at(-1).session).toBeNull();
+  });
+
+  it('自己レビューは API 経由でも 422 になる（ADR-0007）', async () => {
+    const submitted = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: { 'x-board-token': 'machine-token' },
+      payload: { to: 'in-review', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(submitted.statusCode).toBe(200);
+
+    const reviewed = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: { 'x-board-token': 'machine-token' },
+      payload: {
+        to: 'done',
+        updated_at: submitted.json().data.updated_at,
+      },
+    });
+    expect(reviewed.statusCode).toBe(422);
+    expect(reviewed.json().error).toMatch(/自己レビュー/);
+  });
+
+  it('注入した reviewCycleLimit を API 境界の差し戻し判定に使う', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/limit',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: {
+        to: 'needs-ai',
+        handoff_note: '追加修正をお願いします',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error).toMatch(/差し戻し上限/);
   });
 
   it('禁止遷移（needs-ai→done）は 422', async () => {

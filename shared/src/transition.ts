@@ -2,7 +2,7 @@
 // needs-* ↔ in-progress → in-review → done。blocked は作業・レビューの中断と復帰を扱う。
 
 import { ValidationError } from './create-task.js';
-import type { Status, Task } from './task.js';
+import type { ActorType, Status, Task } from './task.js';
 
 /**
  * status 遷移の入力。
@@ -15,10 +15,14 @@ export interface TransitionInput {
   blocked_reason?: string;
 }
 
-/** applyTransition の副作用（時刻・実行者）を注入する依存。 */
+/** applyTransition の副作用（時刻・実行者・認証種別・上限既定値）を注入する依存。 */
 export interface TransitionDeps {
   now: () => string;
   actor: string;
+  /** 認証種別（ADR-0001）。自己レビュー例外とリセット規定の判定に使う（ADR-0007）。 */
+  actorType: ActorType;
+  /** グローバル既定の差し戻し上限。task.review_cycle_limit が null のとき使う。 */
+  reviewCycleLimit: number;
   /** 自己申告の X-Agent-Session。記録専用（ADR-0008）。 */
   session?: string | null;
 }
@@ -63,6 +67,8 @@ export function applyTransition(
     throw new ValidationError(`遷移不可: ${task.status} → ${input.to}`);
   }
 
+  assertReviewRecovery(task, input.to);
+
   const handoff = isHandoff(task.status, input.to);
   if (handoff && (input.handoff_note ?? '').trim().length === 0) {
     throw new ValidationError('引き継ぎ遷移には handoff_note が必須です');
@@ -73,10 +79,33 @@ export function applyTransition(
     throw new ValidationError('ブロックには blocked_reason が必須です');
   }
 
+  assertNotSelfReview(task, input.to, deps);
+
+  // 差し戻し上限は遷移前の値で判定し、拒否時はカウンタを変更しない（ADR-0007）。
+  const isSendback = task.status === 'in-review' && input.to === 'needs-ai';
+  if (isSendback) {
+    const limit = task.review_cycle_limit ?? deps.reviewCycleLimit;
+    if (task.review_cycles >= limit) {
+      throw new ValidationError(
+        `差し戻し上限（${limit}回）に達しています。needs-human へエスカレーションしてください`,
+      );
+    }
+  }
+
+  // 人間による in-review 以外からの再投入は、新しいレビュー予算としてリセットする。
+  const isHumanReinjection =
+    input.to === 'needs-ai' && task.status !== 'in-review' && deps.actorType === 'human';
+  const review_cycles = isSendback
+    ? task.review_cycles + 1
+    : isHumanReinjection
+      ? 0
+      : task.review_cycles;
+
   const timestamp = deps.now();
   return {
     ...task,
     status: input.to,
+    review_cycles,
     handoff_note: handoff ? (input.handoff_note as string) : task.handoff_note,
     // → blocked: 理由をセット。blocked 離脱（解除）: null にリセット。それ以外は不変。
     blocked_reason: blocking
@@ -97,4 +126,35 @@ export function applyTransition(
       },
     ],
   };
+}
+
+/** blocked → in-review は、レビュー中に blocked へ入ったタスクの復帰に限る。 */
+function assertReviewRecovery(task: Task, to: Status): void {
+  if (task.status !== 'blocked' || to !== 'in-review') return;
+
+  const latestTransition = [...task.activity]
+    .reverse()
+    .find((entry) => entry.from !== undefined && entry.to !== undefined);
+  if (latestTransition?.from === 'in-review' && latestTransition.to === 'blocked') return;
+
+  throw new ValidationError('in-review に復帰できるのはレビュー中に blocked になったタスクのみです');
+}
+
+/**
+ * 自己レビュー排除（ADR-0007）。in-review から done / needs-ai へ進める actor は、
+ * 直近の構造化 in-progress → in-review を実行した actor と異なる必要がある。
+ * owner=human かつ現在の actor も human の場合だけ、自分の作業を自分で完了できる。
+ * 構造化提出履歴がない旧データは判定不能として通す。
+ */
+function assertNotSelfReview(task: Task, to: Status, deps: TransitionDeps): void {
+  if (task.status !== 'in-review') return;
+  if (to !== 'done' && to !== 'needs-ai') return;
+
+  const submitted = [...task.activity]
+    .reverse()
+    .find((entry) => entry.from === 'in-progress' && entry.to === 'in-review');
+  if (submitted === undefined || submitted.actor !== deps.actor) return;
+  if (task.owner === 'human' && deps.actorType === 'human') return;
+
+  throw new ValidationError('実装者と同一 actor はレビューを通せません（自己レビュー排除）');
 }

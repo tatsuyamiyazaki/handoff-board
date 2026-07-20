@@ -1,5 +1,10 @@
 import { describe, it, test, expect } from 'vitest';
-import { loadAllowedEmails, loadAllowedEmailDomains, loadBoardTokens } from '../src/config.js';
+import {
+  loadAllowedEmails,
+  loadAllowedEmailDomains,
+  loadBoardTokens,
+  loadReviewCycleLimit,
+} from '../src/config.js';
 
 describe('loadBoardTokens の actor 形式検証（ADR-0008）', () => {
   test('owner 単独と owner:機能 は受理する', () => {
@@ -63,5 +68,19 @@ describe('loadAllowedEmailDomains', () => {
 
   it('空要素は除外する', () => {
     expect(loadAllowedEmailDomains('sunbit.co.jp, ,')).toEqual(['sunbit.co.jp']);
+  });
+});
+
+describe('loadReviewCycleLimit（ADR-0007）', () => {
+  it('未設定なら既定値 5', () => {
+    expect(loadReviewCycleLimit(undefined)).toBe(5);
+  });
+
+  it('正の整数文字列を受理する', () => {
+    expect(loadReviewCycleLimit('3')).toBe(3);
+  });
+
+  test.each(['0', '-1', '2.5', 'abc'])('不正値 %s は throw する', (raw) => {
+    expect(() => loadReviewCycleLimit(raw)).toThrow(/REVIEW_CYCLE_LIMIT/);
   });
 });

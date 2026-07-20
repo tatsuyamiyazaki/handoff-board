@@ -1,5 +1,18 @@
 import type { BoardTokenMap } from './auth/auth-middleware.js';
 
+/** グローバル既定の差し戻し上限（ADR-0007）。 */
+export const DEFAULT_REVIEW_CYCLE_LIMIT = 5;
+
+/** REVIEW_CYCLE_LIMIT を正の整数にパースする。未設定は既定値 5。 */
+export function loadReviewCycleLimit(raw: string | undefined): number {
+  if (!raw) return DEFAULT_REVIEW_CYCLE_LIMIT;
+  const limit = Number(raw);
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new Error('REVIEW_CYCLE_LIMIT must be a positive integer');
+  }
+  return limit;
+}
+
 /** actor の合法形式（ADR-0008）: `owner` または `owner:機能`。最初の `:` で分割し、両側非空・`:` は1個まで。 */
 const ACTOR_FORMAT = /^[^:]+(:[^:]+)?$/;
 

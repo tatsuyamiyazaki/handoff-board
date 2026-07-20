@@ -7,6 +7,7 @@ import {
   loadAllowedEmails,
   loadAllowedEmailDomains,
   loadCorsOrigins,
+  loadReviewCycleLimit,
 } from './config.js';
 import type { AuthConfig, TokenVerifier } from './auth/auth-middleware.js';
 import { FirebaseTokenVerifier } from './auth/firebase-token-verifier.js';
@@ -56,6 +57,7 @@ const app = buildApp({
   repository,
   auth,
   corsOrigins: loadCorsOrigins(process.env.CORS_ORIGIN),
+  reviewCycleLimit: loadReviewCycleLimit(process.env.REVIEW_CYCLE_LIMIT),
 });
 const port = Number(process.env.PORT ?? 8787);
 

@@ -14,6 +14,8 @@ export interface AppDeps {
   ids?: () => string;
   /** 現在時刻 ISO 文字列（テスト用に注入可。既定は new Date().toISOString()）。 */
   clock?: () => string;
+  /** 差し戻し往復のグローバル既定上限（ADR-0007）。未指定は 5。 */
+  reviewCycleLimit?: number;
 }
 
 /** 依存を注入して Fastify アプリを組み立てる（テスト・本番共通）。 */

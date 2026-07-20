@@ -13,6 +13,7 @@ import {
   type Status,
 } from '@handoff/shared';
 import { authenticate, type AuthConfig } from '../auth/auth-middleware.js';
+import { DEFAULT_REVIEW_CYCLE_LIMIT } from '../config.js';
 import type { TaskRepository } from '../repository/task-repository.js';
 
 export interface BoardRouteDeps {
@@ -20,6 +21,8 @@ export interface BoardRouteDeps {
   auth: AuthConfig;
   ids?: () => string;
   clock?: () => string;
+  /** 差し戻し往復のグローバル既定上限（ADR-0007）。未指定は 5。 */
+  reviewCycleLimit?: number;
 }
 
 /** 検証済みの遷移リクエスト本文。 */
@@ -73,6 +76,7 @@ function parseTransitionRequest(input: unknown): TransitionRequest {
 export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps): void {
   const newId = deps.ids ?? ((): string => randomUUID());
   const now = deps.clock ?? ((): string => new Date().toISOString());
+  const reviewCycleLimit = deps.reviewCycleLimit ?? DEFAULT_REVIEW_CYCLE_LIMIT;
 
   app.get('/api/board', async (request) => {
     const { actor, type } = await authenticate(request.headers, deps.auth);
@@ -100,7 +104,7 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
   });
 
   app.patch('/api/board/:id', async (request, reply) => {
-    const { actor } = await authenticate(request.headers, deps.auth);
+    const { actor, type } = await authenticate(request.headers, deps.auth);
     const { id } = request.params as { id: string };
     const req = parseTransitionRequest(request.body);
 
@@ -113,7 +117,13 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
     const next = applyTransition(
       current,
       { to: req.to, handoff_note: req.handoff_note, blocked_reason: req.blocked_reason },
-      { now, actor, session: agentSession(request) },
+      {
+        now,
+        actor,
+        actorType: type,
+        reviewCycleLimit,
+        session: agentSession(request),
+      },
     );
     const saved = await deps.repository.update(next, req.updated_at);
     return ok(saved);
