@@ -10,6 +10,7 @@ interface LaneDef {
 const LANES: LaneDef[] = [
   { label: 'To Do', statuses: ['needs-ai', 'needs-human'] },
   { label: 'In Progress', statuses: ['in-progress'] },
+  { label: 'In Review', statuses: ['in-review'] },
   { label: 'Blocked', statuses: ['blocked'] },
   { label: 'Done', statuses: ['done'] },
 ];
@@ -24,7 +25,7 @@ interface BoardProps {
   onDeleted?: (task: Task) => void;
 }
 
-/** 4レーンのカンバン。タスクをレーン定義の status 群ごとに振り分けて表示する。 */
+/** 5レーンのカンバン。タスクをレーン定義の status 群ごとに振り分けて表示する。 */
 export function Board({ tasks, onTransitioned, onArchived, onDeleted }: BoardProps) {
   const inLane = (lane: LaneDef): Task[] =>
     tasks.filter((t) => lane.statuses.includes(t.status));

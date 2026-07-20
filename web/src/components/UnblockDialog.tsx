@@ -1,15 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import type { Task } from '@handoff/shared';
+import { canRecoverToReview, type Task } from '@handoff/shared';
 import { transitionTask as defaultTransitionTask, type TransitionInput } from '../api-client';
 import { Icon } from './icons';
 
-/** 解除の引き継ぎ先（blocked → needs-*）。 */
-type HandoffTarget = 'needs-ai' | 'needs-human';
+/** 解除後の遷移先（blocked → needs-* / in-review）。 */
+type HandoffTarget = 'needs-ai' | 'needs-human' | 'in-review';
 
 const TARGET_LABEL: Record<HandoffTarget, string> = {
   'needs-ai': 'AI待ち',
   'needs-human': '人間待ち',
+  'in-review': 'レビュー待ちに戻す',
 };
 
 interface UnblockDialogProps {
@@ -20,7 +21,7 @@ interface UnblockDialogProps {
   transitionTask?: (id: string, input: TransitionInput) => Promise<Task>;
 }
 
-/** ブロックを解除するダイアログ。引き継ぎ先（needs-*）と handoff_note 必須で PATCH を送る（#05）。 */
+/** ブロックを解除するダイアログ。needs-* への引き継ぎ時のみ handoff_note 必須で PATCH を送る（#05）。 */
 export function UnblockDialog({
   task,
   onClose,
@@ -31,10 +32,14 @@ export function UnblockDialog({
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const targets = (Object.keys(TARGET_LABEL) as HandoffTarget[]).filter(
+    (candidate) => candidate !== 'in-review' || canRecoverToReview(task),
+  );
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (note.trim().length === 0) {
+    const isHandoffTarget = target !== 'in-review';
+    if (isHandoffTarget && note.trim().length === 0) {
       setError('引き継ぎメモを入力してください');
       return;
     }
@@ -44,7 +49,7 @@ export function UnblockDialog({
     try {
       const updated = await transitionTask(task.id, {
         to: target,
-        handoff_note: note,
+        ...(isHandoffTarget ? { handoff_note: note } : {}),
         updated_at: task.updated_at,
       });
       onTransitioned(updated);
@@ -78,7 +83,7 @@ export function UnblockDialog({
         <label className="field">
           <span>引き継ぎ先</span>
           <select value={target} onChange={(e) => setTarget(e.target.value as HandoffTarget)}>
-            {(Object.keys(TARGET_LABEL) as HandoffTarget[]).map((t) => (
+            {targets.map((t) => (
               <option key={t} value={t}>
                 {TARGET_LABEL[t]}
               </option>
@@ -86,10 +91,12 @@ export function UnblockDialog({
           </select>
         </label>
 
-        <label className="field">
-          <span>引き継ぎメモ</span>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} />
-        </label>
+        {target !== 'in-review' && (
+          <label className="field">
+            <span>引き継ぎメモ</span>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} />
+          </label>
+        )}
 
         <div className="unblock-dialog__actions">
           <button type="button" aria-label="キャンセル" title="キャンセル" onClick={onClose}>

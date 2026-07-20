@@ -27,14 +27,24 @@ const task = (over: Partial<Task> = {}): Task => ({
   ...over,
 });
 
-const LANE_LABELS = ['To Do', 'In Progress', 'Blocked', 'Done'];
+const LANE_LABELS = ['To Do', 'In Progress', 'In Review', 'Blocked', 'Done'];
 
 describe('Board', () => {
-  it('4つのレーン（To Do / In Progress / Blocked / Done）を表示する', () => {
+  it('5つのレーン（To Do / In Progress / In Review / Blocked / Done）を表示する', () => {
     render(<Board tasks={[]} />);
     for (const label of LANE_LABELS) {
       expect(screen.getByRole('region', { name: label })).toBeInTheDocument();
     }
+  });
+
+  it('in-review タスクは In Review レーンに表示される', () => {
+    render(
+      <Board
+        tasks={[task({ id: 'review', status: 'in-review', title: 'レビュー待ちタスク' })]}
+      />,
+    );
+    const lane = screen.getByRole('region', { name: 'In Review' });
+    expect(within(lane).getByText('レビュー待ちタスク')).toBeInTheDocument();
   });
 
   it('needs-ai と needs-human を To Do レーンに統合して表示する', () => {

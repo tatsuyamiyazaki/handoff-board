@@ -320,9 +320,10 @@ body {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(4, minmax(240px, 1fr));
+  grid-template-columns: repeat(5, minmax(240px, 1fr));
   gap: var(--space-lg);
   align-items: start;
+  overflow-x: auto;
 }
 
 /* A lane is a column on the white board; its header is a big Jost section
@@ -549,6 +550,13 @@ body {
   font-size: 13px;
   line-height: 1;
   color: var(--error);
+}
+
+.card__error {
+  margin: var(--space-xs) 0 36px;
+  color: var(--error);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* Actions: 既定は非表示のオーバーレイ。hover/focus で右下に出す（デスクトップ前提）。 */

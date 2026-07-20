@@ -69,4 +69,19 @@ describe('HandoffDialog', () => {
       updated_at: '2026-06-01T00:00:00.000Z',
     });
   });
+
+  it('in-review タスクでは差し戻しとして案内する', () => {
+    render(
+      <HandoffDialog
+        task={task({ status: 'in-review' })}
+        onClose={() => {}}
+        onTransitioned={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole('form', { name: 'タスクを差し戻す' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '差し戻す' })).toBeInTheDocument();
+    expect(screen.getByLabelText('差し戻し先')).toBeInTheDocument();
+    expect(screen.getByLabelText('差し戻しメモ')).toBeInTheDocument();
+  });
 });

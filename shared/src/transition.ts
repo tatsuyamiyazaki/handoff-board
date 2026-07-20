@@ -45,6 +45,18 @@ export function allowedTransitions(from: Status): Status[] {
   return [...ALLOWED_TRANSITIONS[from]];
 }
 
+/** レビュー中断から blocked になったタスクが in-review へ復帰できるか。 */
+export function canRecoverToReview(
+  task: Pick<Task, 'status' | 'activity'>,
+): boolean {
+  if (task.status !== 'blocked') return false;
+
+  const latestTransition = [...task.activity]
+    .reverse()
+    .find((entry) => entry.from !== undefined && entry.to !== undefined);
+  return latestTransition?.from === 'in-review' && latestTransition.to === 'blocked';
+}
+
 /** 引き継ぎ遷移（handoff_note 必須）か。needs-* に入る遷移はすべて note 必須（ADR-0007）。 */
 export function isHandoff(from: Status, to: Status): boolean {
   return (
@@ -131,11 +143,7 @@ export function applyTransition(
 /** blocked → in-review は、レビュー中に blocked へ入ったタスクの復帰に限る。 */
 function assertReviewRecovery(task: Task, to: Status): void {
   if (task.status !== 'blocked' || to !== 'in-review') return;
-
-  const latestTransition = [...task.activity]
-    .reverse()
-    .find((entry) => entry.from !== undefined && entry.to !== undefined);
-  if (latestTransition?.from === 'in-review' && latestTransition.to === 'blocked') return;
+  if (canRecoverToReview(task)) return;
 
   throw new ValidationError('in-review に復帰できるのはレビュー中に blocked になったタスクのみです');
 }

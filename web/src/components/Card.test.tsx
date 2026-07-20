@@ -96,19 +96,84 @@ describe('Card', () => {
     });
   });
 
-  it('in-progress タスクには「完了」があり、押すと done へ直接遷移する', async () => {
-    const done = task({ id: 'a', status: 'done' });
-    const transitionTask = vi.fn().mockResolvedValue(done);
-    render(<Card task={task({ id: 'a', status: 'in-progress' })} transitionTask={transitionTask} />);
+  it('in-progress カードには完了ボタンがなく、レビュー依頼ボタンがある', () => {
+    render(<Card task={task({ status: 'in-progress' })} />);
+    expect(screen.queryByRole('button', { name: '完了' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'レビュー依頼' })).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: '完了' }));
+  it('レビュー依頼で in-review への直接遷移が送られる', async () => {
+    const reviewed = task({ id: 'a', status: 'in-review' });
+    const transitionTask = vi.fn().mockResolvedValue(reviewed);
+    const onTransitioned = vi.fn();
+    render(
+      <Card
+        task={task({ id: 'a', status: 'in-progress' })}
+        transitionTask={transitionTask}
+        onTransitioned={onTransitioned}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'レビュー依頼' }));
 
     await waitFor(() =>
       expect(transitionTask).toHaveBeenCalledWith('a', {
-        to: 'done',
+        to: 'in-review',
         updated_at: '2026-06-01T00:00:00.000Z',
       }),
     );
+    expect(onTransitioned).toHaveBeenCalledWith(reviewed);
+  });
+
+  it('in-review カードには完了と差し戻しボタンがある', () => {
+    render(<Card task={task({ status: 'in-review' })} />);
+    expect(screen.getByRole('button', { name: '完了' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '差し戻し' })).toBeInTheDocument();
+  });
+
+  it('in-review の完了で done への直接遷移を送り onTransitioned に渡す', async () => {
+    const done = task({ id: 'a', status: 'done' });
+    const transitionTask = vi.fn().mockResolvedValue(done);
+    const onTransitioned = vi.fn();
+    render(
+      <Card
+        task={task({ id: 'a', status: 'in-review' })}
+        transitionTask={transitionTask}
+        onTransitioned={onTransitioned}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '完了' }));
+
+    await waitFor(() => expect(onTransitioned).toHaveBeenCalledWith(done));
+    expect(transitionTask).toHaveBeenCalledWith('a', {
+      to: 'done',
+      updated_at: '2026-06-01T00:00:00.000Z',
+    });
+  });
+
+  it('自己レビューなど直接遷移の拒否をカード内に表示する', async () => {
+    const transitionTask = vi.fn().mockRejectedValue(new Error('自己レビューはできません'));
+    render(
+      <Card task={task({ status: 'in-review' })} transitionTask={transitionTask} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '完了' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('自己レビューはできません');
+  });
+
+  it('直接遷移エラーは別のダイアログ操作を始めると消える', async () => {
+    const transitionTask = vi.fn().mockRejectedValue(new Error('レビュー依頼に失敗'));
+    render(
+      <Card task={task({ status: 'in-progress' })} transitionTask={transitionTask} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'レビュー依頼' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('レビュー依頼に失敗');
+
+    fireEvent.click(screen.getByRole('button', { name: '引き継ぎ' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('in-progress タスクには「引き継ぎ」があり、押すと引き継ぎダイアログが開く', () => {
