@@ -84,9 +84,14 @@ export type ActorType = 'human' | 'machine';
 export interface ActivityEntry {
   /** ISO 8601（例: 2026-06-01T07:30:00Z） */
   timestamp: string;
-  /** 操作主体。人間=メール等、機械系=トークン種別。owner とは別概念。 */
+  /** 操作主体。人間=メール等、機械系=トークン種別（owner[:機能]、ADR-0008）。owner とは別概念。 */
   actor: string;
   action: string;
+  /**
+   * 自己申告のセッション識別子（X-Agent-Session、ADR-0008）。記録専用で認証・強制には使わない。
+   * 省略（既存データ）は null 扱い。
+   */
+  session?: string | null;
 }
 
 /** 1件の作業項目。Firestore では board / archive の1ドキュメント。 */

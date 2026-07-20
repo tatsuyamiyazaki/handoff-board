@@ -96,6 +96,8 @@ export function validateEditTask(input: unknown): NormalizedEdit {
 export interface EditTaskDeps {
   now: () => string;
   actor: string;
+  /** 自己申告の X-Agent-Session。記録専用（ADR-0008）。 */
+  session?: string | null;
 }
 
 /**
@@ -118,6 +120,9 @@ export function applyEdit(task: Task, normalized: NormalizedEdit, deps: EditTask
     project: normalized.project,
     milestone: normalized.milestone,
     updated_at: timestamp,
-    activity: [...task.activity, { timestamp, actor: deps.actor, action: 'edited' }],
+    activity: [
+      ...task.activity,
+      { timestamp, actor: deps.actor, action: 'edited', session: deps.session ?? null },
+    ],
   };
 }

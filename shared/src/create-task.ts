@@ -155,6 +155,8 @@ export interface BuildTaskDeps {
   actor: string;
   /** 認証種別（ADR-0011）。created_by_type に刻む。 */
   actorType: ActorType;
+  /** 自己申告の X-Agent-Session。記録専用（ADR-0008）。 */
+  session?: string | null;
 }
 
 /** NormalizedCreate から Task を生成。created_at/updated_at と created の activity を付与。 */
@@ -178,6 +180,6 @@ export function buildTask(normalized: NormalizedCreate, deps: BuildTaskDeps): Ta
     created_by_type: deps.actorType,
     created_at: timestamp,
     updated_at: timestamp,
-    activity: [{ timestamp, actor: deps.actor, action: 'created' }],
+    activity: [{ timestamp, actor: deps.actor, action: 'created', session: deps.session ?? null }],
   };
 }

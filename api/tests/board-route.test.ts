@@ -188,7 +188,10 @@ describe('POST /api/board（作成）', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/board',
-      headers: { 'x-board-token': 'dev-token' },
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'create-session',
+      },
       payload: {
         title: '記事を書く',
         owner: 'cowork',
@@ -206,6 +209,7 @@ describe('POST /api/board（作成）', () => {
     expect(task.updated_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.activity).toHaveLength(1);
     expect(task.activity[0]).toMatchObject({ actor: 'cowork', action: 'created' });
+    expect(task.activity[0].session).toBe('create-session');
   });
 
   it('人間 Bearer で作成すると created_by_type=human を刻む', async () => {
@@ -336,6 +340,71 @@ describe('PATCH /api/board/:id（status 遷移）', () => {
       actor: 'cowork',
       action: 'needs-ai → in-progress',
     });
+  });
+
+  it('X-Agent-Session を activity に記録する', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': '  dev-worktree-a3f2  ',
+      },
+      payload: {
+        to: 'needs-human',
+        handoff_note: '人間の確認をお願いします',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.activity.at(-1).session).toBe('dev-worktree-a3f2');
+  });
+
+  it('X-Agent-Session は 128 文字まで受理し、それを超える値は 422 にする', async () => {
+    const accepted = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'a'.repeat(128),
+      },
+      payload: {
+        to: 'needs-human',
+        handoff_note: '人間の確認をお願いします',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    });
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json().data.activity.at(-1).session).toHaveLength(128);
+
+    const rejected = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/a',
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'a'.repeat(129),
+      },
+      payload: { to: 'in-progress', updated_at: '2026-06-01T00:00:00Z' },
+    });
+    expect(rejected.statusCode).toBe(422);
+    expect(rejected.json().error).toMatch(/X-Agent-Session/);
+  });
+
+  it('X-Agent-Session がない場合は activity の session を null にする', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/board/wip',
+      headers: { 'x-board-token': 'dev-token' },
+      payload: {
+        to: 'needs-human',
+        handoff_note: '人間の確認をお願いします',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.activity.at(-1).session).toBeNull();
   });
 
   it('禁止遷移（needs-ai→done）は 422', async () => {
@@ -479,12 +548,16 @@ describe('POST /api/board/:id/complete（完了→アーカイブ）', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/board/fin/complete',
-      headers: { 'x-board-token': 'dev-token' },
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'archive-session',
+      },
     });
     expect(res.statusCode).toBe(200);
     const task = res.json().data;
     expect(task.id).toBe('fin');
     expect(task.activity.at(-1)).toMatchObject({ actor: 'cowork', action: 'archived' });
+    expect(task.activity.at(-1).session).toBe('archive-session');
     expect((await repository.findAll()).map((t) => t.id)).not.toContain('fin');
     expect((await repository.findArchivedById('fin'))?.id).toBe('fin');
   });
@@ -563,7 +636,10 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     const res = await app.inject({
       method: 'PATCH',
       url: '/api/board/t1/details',
-      headers: { 'x-board-token': 'dev-token' },
+      headers: {
+        'x-board-token': 'dev-token',
+        'x-agent-session': 'edit-session',
+      },
       payload: edit,
     });
     expect(res.statusCode).toBe(200);
@@ -575,6 +651,7 @@ describe('PATCH /api/board/:id/details（内容編集）', () => {
     expect(t.status).toBe('in-progress'); // 遷移はしない
     expect(t.updated_at).toBe('2026-06-01T10:00:00.000Z');
     expect(t.activity.at(-1).action).toBe('edited');
+    expect(t.activity.at(-1).session).toBe('edit-session');
   });
 
   it('編集で project/milestone を更新する', async () => {

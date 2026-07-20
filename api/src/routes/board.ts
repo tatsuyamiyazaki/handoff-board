@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import {
   ok,
@@ -28,6 +28,24 @@ interface TransitionRequest {
   handoff_note?: string;
   blocked_reason?: string;
   updated_at: string;
+}
+
+const MAX_AGENT_SESSION_LENGTH = 128;
+
+/** 自己申告のセッション識別子を履歴記録用に読む。認証・認可には使わない。 */
+function agentSession(request: FastifyRequest): string | null {
+  const raw = request.headers['x-agent-session'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value === undefined) return null;
+
+  const normalized = value.trim();
+  if (normalized.length === 0) return null;
+  if (normalized.length > MAX_AGENT_SESSION_LENGTH) {
+    throw new ValidationError(
+      `X-Agent-Session must be at most ${MAX_AGENT_SESSION_LENGTH} characters`,
+    );
+  }
+  return normalized;
 }
 
 /** PATCH 本文を検証する。to は有効 status、updated_at は楽観ロック用に必須。違反は 422。 */
@@ -69,7 +87,13 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
   app.post('/api/board', async (request, reply) => {
     const { actor, type } = await authenticate(request.headers, deps.auth);
     const normalized = validateCreateTask(request.body);
-    const task = buildTask(normalized, { id: newId, now, actor, actorType: type });
+    const task = buildTask(normalized, {
+      id: newId,
+      now,
+      actor,
+      actorType: type,
+      session: agentSession(request),
+    });
     const created = await deps.repository.create(task);
     reply.status(201);
     return ok(created);
@@ -89,7 +113,7 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
     const next = applyTransition(
       current,
       { to: req.to, handoff_note: req.handoff_note, blocked_reason: req.blocked_reason },
-      { now, actor },
+      { now, actor, session: agentSession(request) },
     );
     const saved = await deps.repository.update(next, req.updated_at);
     return ok(saved);
@@ -115,7 +139,7 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
       return fail('task not found');
     }
 
-    const next = applyEdit(current, normalized, { now, actor });
+    const next = applyEdit(current, normalized, { now, actor, session: agentSession(request) });
     const saved = await deps.repository.update(next, expectedUpdatedAt);
     return ok(saved);
   });
@@ -157,7 +181,10 @@ export function registerBoardRoutes(app: FastifyInstance, deps: BoardRouteDeps):
     const archivedTask = {
       ...current,
       updated_at: timestamp,
-      activity: [...current.activity, { timestamp, actor, action: 'archived' }],
+      activity: [
+        ...current.activity,
+        { timestamp, actor, action: 'archived', session: agentSession(request) },
+      ],
     };
     const saved = await deps.repository.complete(archivedTask);
     return ok(saved);

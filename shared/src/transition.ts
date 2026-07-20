@@ -19,6 +19,8 @@ export interface TransitionInput {
 export interface TransitionDeps {
   now: () => string;
   actor: string;
+  /** 自己申告の X-Agent-Session。記録専用（ADR-0008）。 */
+  session?: string | null;
 }
 
 /**
@@ -81,7 +83,12 @@ export function applyTransition(
     updated_at: timestamp,
     activity: [
       ...task.activity,
-      { timestamp, actor: deps.actor, action: `${task.status} → ${input.to}` },
+      {
+        timestamp,
+        actor: deps.actor,
+        action: `${task.status} → ${input.to}`,
+        session: deps.session ?? null,
+      },
     ],
   };
 }

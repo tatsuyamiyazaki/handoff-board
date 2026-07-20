@@ -204,7 +204,12 @@ describe('buildTask', () => {
     expect(task.updated_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.blocked_reason).toBeNull();
     expect(task.activity).toEqual([
-      { timestamp: '2026-06-01T00:00:00.000Z', actor: 'cowork', action: 'created' },
+      {
+        timestamp: '2026-06-01T00:00:00.000Z',
+        actor: 'cowork',
+        action: 'created',
+        session: null,
+      },
     ]);
   });
 

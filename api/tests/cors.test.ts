@@ -21,12 +21,13 @@ describe('CORS', () => {
       headers: {
         origin: ORIGIN,
         'access-control-request-method': 'POST',
-        'access-control-request-headers': 'content-type,x-board-token',
+        'access-control-request-headers': 'content-type,x-board-token,x-agent-session',
       },
     });
 
     expect(res.statusCode).toBeLessThan(300);
     expect(res.headers['access-control-allow-origin']).toBe(ORIGIN);
+    expect(res.headers['access-control-allow-headers']).toContain('X-Agent-Session');
   });
 
   it('カード削除(DELETE)のプリフライトを許可する', async () => {

@@ -78,6 +78,7 @@ describe('applyEdit', () => {
       timestamp: '2026-06-01T09:00:00.000Z',
       actor: 'editor@example.com',
       action: 'edited',
+      session: null,
     });
   });
 
