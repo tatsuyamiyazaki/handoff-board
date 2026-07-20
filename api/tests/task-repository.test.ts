@@ -19,6 +19,8 @@ const sampleTask = (over: Partial<Task> = {}): Task => ({
   tags: [],
   created_by: 'creator@example.com',
   created_by_type: 'human',
+  review_cycles: 0,
+  review_cycle_limit: null,
   created_at: '2026-06-01T00:00:00Z',
   updated_at: '2026-06-01T00:00:00Z',
   activity: [],

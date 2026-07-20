@@ -4,6 +4,7 @@ export const STATUSES = [
   'needs-ai',
   'needs-human',
   'in-progress',
+  'in-review',
   'done',
   'blocked',
 ] as const;
@@ -92,6 +93,10 @@ export interface ActivityEntry {
    * 省略（既存データ）は null 扱い。
    */
   session?: string | null;
+  /** 遷移エントリの構造化 from（ADR-0007。文字列パースに依存しない自己レビュー判定用）。遷移以外・既存データは null。 */
+  from?: Status | null;
+  /** 遷移エントリの構造化 to。遷移以外・既存データは null。 */
+  to?: Status | null;
 }
 
 /** 1件の作業項目。Firestore では board / archive の1ドキュメント。 */
@@ -129,5 +134,9 @@ export interface Task {
   created_at: string;
   /** ISO 8601。楽観的並行制御の照合キー。 */
   updated_at: string;
+  /** 差し戻し回数（in-review → needs-ai のたびにサーバーがインクリメント、ADR-0007）。既存データ欠落は 0。 */
+  review_cycles: number;
+  /** タスク単位の差し戻し上限（null なら REVIEW_CYCLE_LIMIT 既定値、ADR-0007）。人間のみ変更可。 */
+  review_cycle_limit: number | null;
   activity: ActivityEntry[];
 }

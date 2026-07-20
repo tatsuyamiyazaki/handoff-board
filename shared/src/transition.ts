@@ -1,5 +1,5 @@
-// status 遷移エンジン（純関数・深いモジュール）。ADR-0002 の遷移グラフを唯一の真実とする。
-// #04: needs-* ↔ in-progress ↔ done。#05: blocked への出入り（理由必須・離脱時リセット）。
+// status 遷移エンジン（純関数・深いモジュール）。ADR-0002/0007 の遷移グラフを唯一の真実とする。
+// needs-* ↔ in-progress → in-review → done。blocked は作業・レビューの中断と復帰を扱う。
 
 import { ValidationError } from './create-task.js';
 import type { Status, Task } from './task.js';
@@ -24,15 +24,16 @@ export interface TransitionDeps {
 }
 
 /**
- * 許可される遷移グラフ（ADR-0002）。needs-* ↔ in-progress ↔ done に加え、
- * #05 で (needs-* / in-progress) → blocked と blocked → needs-* を追加。done は終端（出口なし）。
+ * 許可される遷移グラフ（ADR-0002、ADR-0007 で amend）。done への唯一の入口は in-review。
+ * blocked → in-review はレビュー中断からの復帰（再実装ループに落とさないための辺）。
  */
 const ALLOWED_TRANSITIONS: Readonly<Record<Status, readonly Status[]>> = {
   'needs-ai': ['in-progress', 'blocked'],
   'needs-human': ['in-progress', 'blocked'],
-  'in-progress': ['needs-ai', 'needs-human', 'done', 'blocked'],
+  'in-progress': ['needs-ai', 'needs-human', 'in-review', 'blocked'],
+  'in-review': ['done', 'needs-ai', 'needs-human', 'blocked'],
   done: [],
-  blocked: ['needs-ai', 'needs-human'],
+  blocked: ['needs-ai', 'needs-human', 'in-review'],
 };
 
 /** 指定 status から許可される遷移先の一覧（UI のボタン描画用）。 */
@@ -40,9 +41,12 @@ export function allowedTransitions(from: Status): Status[] {
   return [...ALLOWED_TRANSITIONS[from]];
 }
 
-/** 引き継ぎ遷移（handoff_note 必須）か。in-progress→needs-* と blocked→needs-*（解除）。 */
+/** 引き継ぎ遷移（handoff_note 必須）か。needs-* に入る遷移はすべて note 必須（ADR-0007）。 */
 export function isHandoff(from: Status, to: Status): boolean {
-  return (from === 'in-progress' || from === 'blocked') && (to === 'needs-ai' || to === 'needs-human');
+  return (
+    (from === 'in-progress' || from === 'blocked' || from === 'in-review') &&
+    (to === 'needs-ai' || to === 'needs-human')
+  );
 }
 
 /**
@@ -88,6 +92,8 @@ export function applyTransition(
         actor: deps.actor,
         action: `${task.status} → ${input.to}`,
         session: deps.session ?? null,
+        from: task.status,
+        to: input.to,
       },
     ],
   };

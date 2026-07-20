@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   applyTransition,
   allowedTransitions,
+  isHandoff,
   ValidationError,
   type Task,
 } from '@handoff/shared';
@@ -22,6 +23,8 @@ const baseTask = (over: Partial<Task> = {}): Task => ({
   tags: [],
   created_by: 'creator@example.com',
   created_by_type: 'human',
+  review_cycles: 0,
+  review_cycle_limit: null,
   created_at: '2026-06-01T00:00:00.000Z',
   updated_at: '2026-06-01T00:00:00.000Z',
   activity: [{ timestamp: '2026-06-01T00:00:00.000Z', actor: 'human', action: 'created' }],
@@ -114,7 +117,8 @@ describe('applyTransition: グラフ網羅（#04 スコープ＝ blocked を除�
     ['needs-human', 'in-progress'],
     ['in-progress', 'needs-ai', 'メモ'],
     ['in-progress', 'needs-human', 'メモ'],
-    ['in-progress', 'done'],
+    ['in-progress', 'in-review'],
+    ['in-review', 'done'],
   ];
   it.each(allowed)('許可: %s → %s は成功', (from, to, note) => {
     const next = applyTransition(baseTask({ status: from }), { to, handoff_note: note }, deps);
@@ -127,6 +131,7 @@ describe('applyTransition: グラフ網羅（#04 スコープ＝ blocked を除�
     ['needs-human', 'needs-ai'],
     ['needs-human', 'done'],
     ['in-progress', 'in-progress'],
+    ['in-progress', 'done'],
     ['done', 'in-progress'],
     ['done', 'needs-ai'],
   ];
@@ -212,11 +217,11 @@ describe('applyTransition: 解除（blocked → needs-*）は handoff_note 必�
 });
 
 describe('allowedTransitions: UI がボタンを描画するための許可先一覧', () => {
-  it('in-progress からは needs-ai / needs-human / done / blocked', () => {
+  it('in-progress からは needs-ai / needs-human / in-review / blocked', () => {
     expect(allowedTransitions('in-progress')).toEqual([
       'needs-ai',
       'needs-human',
-      'done',
+      'in-review',
       'blocked',
     ]);
   });
@@ -233,7 +238,46 @@ describe('allowedTransitions: UI がボタンを描画するための許可先�
     expect(allowedTransitions('in-progress')).toContain('blocked');
   });
 
-  it('blocked からは needs-ai / needs-human のみ', () => {
-    expect(allowedTransitions('blocked')).toEqual(['needs-ai', 'needs-human']);
+  it('blocked からは needs-ai / needs-human / in-review', () => {
+    expect(allowedTransitions('blocked')).toEqual(['needs-ai', 'needs-human', 'in-review']);
+  });
+});
+
+describe('in-review 遷移グラフ（ADR-0007）', () => {
+  it('in-progress → done は許可されない（done の唯一の入口は in-review）', () => {
+    expect(allowedTransitions('in-progress')).toEqual(
+      expect.arrayContaining(['needs-ai', 'needs-human', 'in-review', 'blocked']),
+    );
+    expect(allowedTransitions('in-progress')).not.toContain('done');
+  });
+
+  it('in-review からは done / needs-ai / needs-human / blocked へ遷移できる', () => {
+    expect(allowedTransitions('in-review').sort()).toEqual(
+      ['blocked', 'done', 'needs-ai', 'needs-human'].sort(),
+    );
+  });
+
+  it('blocked → in-review（レビュー中断からの復帰）が許可される', () => {
+    expect(allowedTransitions('blocked')).toContain('in-review');
+  });
+
+  it('in-review → needs-ai / needs-human は handoff_note 必須', () => {
+    expect(isHandoff('in-review', 'needs-ai')).toBe(true);
+    expect(isHandoff('in-review', 'needs-human')).toBe(true);
+    expect(isHandoff('in-progress', 'in-review')).toBe(false);
+  });
+
+  it('遷移の activity エントリに構造化 from/to が記録される', () => {
+    const task = baseTask({
+      status: 'in-progress',
+      review_cycles: 2,
+      review_cycle_limit: 5,
+    });
+    const next = applyTransition(task, { to: 'in-review' }, deps);
+    const last = next.activity.at(-1)!;
+    expect(last.from).toBe('in-progress');
+    expect(last.to).toBe('in-review');
+    expect(next.review_cycles).toBe(2);
+    expect(next.review_cycle_limit).toBe(5);
   });
 });

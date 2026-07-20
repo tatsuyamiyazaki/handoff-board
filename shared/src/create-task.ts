@@ -178,6 +178,8 @@ export function buildTask(normalized: NormalizedCreate, deps: BuildTaskDeps): Ta
     milestone: normalized.milestone,
     created_by: deps.actor,
     created_by_type: deps.actorType,
+    review_cycles: 0,
+    review_cycle_limit: null,
     created_at: timestamp,
     updated_at: timestamp,
     activity: [{ timestamp, actor: deps.actor, action: 'created', session: deps.session ?? null }],

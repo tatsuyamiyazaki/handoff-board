@@ -203,6 +203,8 @@ describe('buildTask', () => {
     expect(task.created_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.updated_at).toBe('2026-06-01T00:00:00.000Z');
     expect(task.blocked_reason).toBeNull();
+    expect(task.review_cycles).toBe(0);
+    expect(task.review_cycle_limit).toBeNull();
     expect(task.activity).toEqual([
       {
         timestamp: '2026-06-01T00:00:00.000Z',

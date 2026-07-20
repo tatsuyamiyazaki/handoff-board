@@ -7,12 +7,21 @@ const BOARD_COLLECTION = 'board';
 const ARCHIVE_COLLECTION = 'archive';
 
 /** Firestore に保存されているタスク（後方互換: 後付けフィールドは欠落しうる）。 */
-type StoredTask = Omit<Task, 'id' | 'created_by_type'> &
-  Partial<Pick<Task, 'created_by_type'>>;
+export type StoredTask = Omit<
+  Task,
+  'id' | 'created_by_type' | 'review_cycles' | 'review_cycle_limit'
+> &
+  Partial<Pick<Task, 'created_by_type' | 'review_cycles' | 'review_cycle_limit'>>;
 
-/** 読み出し時の既定値補完。created_by_type 欠落は 'human'（見せない方向に倒す、ADR-0011）。 */
-function toTask(id: string, data: StoredTask): Task {
-  return { created_by_type: 'human', ...data, id };
+/** 読み出し時の既定値補完（後方互換、ADR-0007 / ADR-0011）。 */
+export function toTask(id: string, data: StoredTask): Task {
+  return {
+    created_by_type: 'human',
+    review_cycles: 0,
+    review_cycle_limit: null,
+    ...data,
+    id,
+  };
 }
 
 /**
