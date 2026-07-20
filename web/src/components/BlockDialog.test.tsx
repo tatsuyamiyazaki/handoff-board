@@ -1,31 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { BlockDialog } from './BlockDialog';
 
-const sampleTask = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: 'サンプル',
-  status: 'in-progress',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: 'お願い',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_by_type: 'human',
-  review_cycles: 0,
-  review_cycle_limit: null,
-  created_at: '2026-06-01T00:00:00.000Z',
-  updated_at: '2026-06-01T00:00:00.000Z',
-  activity: [],
-  ...over,
-});
+const sampleTask = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: 'サンプル',
+    status: 'in-progress',
+    owner: 'cowork',
+    handoff_note: 'お願い',
+    activity: [],
+    ...over,
+  });
 
 describe('BlockDialog', () => {
   it('理由が空で送信するとエラーを表示し、transitionTask を呼ばない', async () => {

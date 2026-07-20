@@ -1,31 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { DeleteDialog } from './DeleteDialog';
 
-const task = (over: Partial<Task> = {}): Task => ({
-  id: 't1',
-  title: '消すタスク',
-  status: 'needs-ai',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: '',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_by_type: 'human',
-  review_cycles: 0,
-  review_cycle_limit: null,
-  created_at: '2026-06-01T00:00:00.000Z',
-  updated_at: '2026-06-01T00:00:00.000Z',
-  activity: [],
-  ...over,
-});
+const task = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    title: '消すタスク',
+    owner: 'cowork',
+    handoff_note: '',
+    activity: [],
+    ...over,
+  });
 
 describe('DeleteDialog', () => {
   it('タイトルを示し、削除で deleteTask を呼び onDeleted に渡す', async () => {

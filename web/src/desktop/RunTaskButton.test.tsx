@@ -2,32 +2,22 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { HandoffDesktopBridge, Task } from '@handoff/shared';
+import { makeTask as makeSharedTask } from '@handoff/shared/testing';
 import { RunTaskButton } from './RunTaskButton';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
-  return {
+  return makeSharedTask({
     id: 'task-1',
     title: 'AI にやってほしい仕事',
-    status: 'needs-ai',
     owner: 'claude-code',
-    department: null,
-    role: null,
-    priority: 'P2',
-    action_type: 'other',
-    tags: [],
     handoff_note: '',
-    blocked_reason: null,
     project: 'handoff',
-    milestone: null,
     created_by: 'me@example.com',
-    created_by_type: 'human',
-    review_cycles: 0,
-    review_cycle_limit: null,
     created_at: '2026-07-14T00:00:00.000Z',
     updated_at: '2026-07-14T00:00:00.000Z',
     activity: [],
     ...overrides,
-  } as Task;
+  });
 }
 
 function makeBridge(overrides: Partial<HandoffDesktopBridge> = {}): HandoffDesktopBridge {

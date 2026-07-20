@@ -1,32 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { Task } from '@handoff/shared';
+import { makeTask } from '@handoff/shared/testing';
 import { CreateTaskDialog } from './CreateTaskDialog';
 import { LabelOptionsProvider } from '../lib/label-options';
 
-const sampleTask = (over: Partial<Task> = {}): Task => ({
-  id: 'new-1',
-  title: '記事を書く',
-  status: 'needs-ai',
-  owner: 'cowork',
-  priority: 'P2',
-  action_type: 'other',
-  handoff_note: 'お願い',
-  blocked_reason: null,
-  department: null,
-  role: null,
-  project: null,
-  milestone: null,
-  tags: [],
-  created_by: 'creator@example.com',
-  created_by_type: 'human',
-  review_cycles: 0,
-  review_cycle_limit: null,
-  created_at: '2026-06-01T00:00:00.000Z',
-  updated_at: '2026-06-01T00:00:00.000Z',
-  activity: [],
-  ...over,
-});
+const sampleTask = (over: Partial<Task> = {}): Task =>
+  makeTask({
+    id: 'new-1',
+    title: '記事を書く',
+    owner: 'cowork',
+    handoff_note: 'お願い',
+    activity: [],
+    ...over,
+  });
 
 describe('CreateTaskDialog', () => {
   it('必須未入力で送信するとバリデーションエラーを表示し、作成は呼ばれない', async () => {
