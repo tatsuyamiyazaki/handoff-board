@@ -46,7 +46,7 @@
 | `CORS_ORIGIN` | `https://handoff-dashboard.web.app,https://handoff-dashboard.firebaseapp.com` | 平文 env |
 | `ALLOWED_EMAILS` | 人間ログインの許可メール（例: `tatsuya.miyazaki@gmail.com`） | 平文 env |
 | `ALLOWED_EMAIL_DOMAINS` | 許可ドメイン（例: `sunbit.co.jp`） | 平文 env |
-| `BOARD_TOKENS` | 機械系トークン→actor の JSON。AI 実行者ごとに分離（例 `{"<cowork-token>":"cowork","<claude-code-token>":"claude-code"}`、ADR-0006） | **Secret Manager**（`handoff-board-tokens:latest`） |
+| `BOARD_TOKENS` | 機械系トークン→actor の JSON。actor は `owner[:機能]` 粒度（例 `{"<cc-dev-token>":"claude-code:dev","<cc-reviewer-token>":"claude-code:reviewer","<cc-ceo-token>":"claude-code:ceo","<cowork-token>":"cowork"}`、ADR-0008） | **Secret Manager**（`handoff-board-tokens:latest`） |
 | `PORT` | Cloud Run が自動注入（8080） | Cloud Run |
 
 - **`GOOGLE_APPLICATION_CREDENTIALS` は Cloud Run に設定しない**。ランタイムはメタデータ ADC（ランタイム SA）で Firestore に接続する。
@@ -66,6 +66,16 @@ gcloud run deploy handoff-api --source . --region asia-northeast1 --project hand
 - `--source .` がルートの `Dockerfile` を Cloud Build でビルドする（pnpm monorepo を `tsx` 起動、`shared` は src 参照のまま）。
 - env を変えたいときは `gcloud run services update handoff-api --region asia-northeast1 --update-env-vars KEY=VALUE`（**`--update-` はマージ**。`--set-env-vars` は全置換なので注意）。
 - 値にカンマを含む場合（複数 origin 等）はカスタム区切り: `--update-env-vars "^;^CORS_ORIGIN=a,b;ALLOWED_EMAILS=x@y"`。
+
+> **⚠️ 起動時 fail-fast 検証（ADR-0008）— 再デプロイ前に必ず確認**
+> API は起動時に `BOARD_TOKENS` の actor 形式を検証し、不正なら**即 throw して起動失敗する**（Cloud Run では crash-loop になる）。再デプロイ前に現行 Secret（`handoff-board-tokens:latest`）の値を検証すること:
+> - 各 actor 値は `owner` または `owner:機能` の形（最初のコロンで分割、両側とも非空、コロンは最大 1 個、空白・制御文字を含まない、値は文字列）。
+> - `REVIEW_CYCLE_LIMIT` を設定する場合は正の安全整数（positive safe integer）であること。不正だと同じく起動時に throw する。
+>
+> 現行 Secret 値の確認例（PowerShell 可）:
+> ```
+> gcloud secrets versions access latest --secret=handoff-board-tokens --project handoff-dashboard
+> ```
 
 ### Web（Firebase Hosting）
 ```
@@ -91,6 +101,41 @@ owner/department/role の三軸モデルは enum を **3 箇所に複製**して
 5. **検証**: MCP 経由で department/role 付きタスクを作成し 201、本番カンバンでドット・部署色チップ・ロールチップ・部署フィルタが動くこと、activity の actor が実行者ごとに分かれることを確認する。
 
 本番 Firestore（`board` / `archive`）が空のあいだに切り替えればデータ移行は不要。既存ドキュメントがある場合は `owner` の旧値（`ai-batch`/`ai-interactive`）と `agent` フィールドのバックフィル（→ `cowork`/`claude-code` と `department`/`role`）が必要になる。
+
+## `created_by_type` バックフィル・ウィンドウ（ADR-0011）
+
+ADR-0011 の人間ボードスコープ（`created_by` が当人 ∨ `created_by_type=machine`）は、ドキュメントの `created_by_type` フィールドに依存する。**このリリースより前に機械系トークンで作成されたドキュメントは `created_by_type` を持たない**。読み出し時は `toTask` が保守的に `'human'` を補完するため、これら旧・機械系タスクは**人間ボードに出てこない**。
+
+さらに注意すべき不可逆性がある: デプロイ後にそのドキュメントを一度でも更新（status 遷移・details 編集など）すると、API はドキュメント全体を書き直すため `created_by_type:'human'` が**恒久的に焼き込まれる**。こうなると「フィールド欠落」による旧・機械系タスクの識別は二度とできなくなる。
+
+旧・機械系タスクを人間ボードに出したいなら、**機械系クライアントが書き込みを再開する前に**バックフィルを実行すること（`created_by` が既知の機械系 actor 値のドキュメントに `created_by_type:'machine'` を付与する）。
+
+- **確認（Firestore コンソール）**: `board` コレクションで `created_by` が機械系 actor（例 `claude-code:dev` / `cowork`）かつ `created_by_type` 未設定のドキュメントを洗い出す。コンソールのクエリでは「フィールド未設定」を直接絞れないため、`created_by` で絞ってから欠落を目視するか、下記スクリプトで判定する。
+- **バックフィル例（Node + Admin SDK、ADC 前提）**:
+  ```js
+  import { initializeApp, applicationDefault } from 'firebase-admin/app';
+  import { getFirestore } from 'firebase-admin/firestore';
+
+  initializeApp({ credential: applicationDefault() });
+  const db = getFirestore();
+
+  // 既知の機械系 actor 値（BOARD_TOKENS の actor と一致させる）
+  const MACHINE_ACTORS = ['cowork', 'claude-code:dev', 'claude-code:reviewer', 'claude-code:ceo'];
+
+  const snapshot = await db.collection('board').get();
+  const batch = db.batch();
+  let count = 0;
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    if (data.created_by_type === undefined && MACHINE_ACTORS.includes(data.created_by)) {
+      batch.update(doc.ref, { created_by_type: 'machine' });
+      count += 1;
+    }
+  }
+  if (count > 0) await batch.commit();
+  console.log(`backfilled ${count} docs`);
+  ```
+- 500 件を超える場合は `batch` を分割する（Firestore の 1 バッチ上限）。`archive` コレクションにも同様の旧ドキュメントがあれば同じ処理を適用する。
 
 ## ローカル開発 vs 本番の差分（重要）
 
