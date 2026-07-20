@@ -4,6 +4,8 @@
 
 accepted
 
+> 注記: [ADR-0011](0011-human-board-includes-machine-created-tasks.md) により人間ボードの絞り込み規則が amend された（機械系作成タスクを含む）。
+
 ## 決定
 
 人間（カンバンWeb UI）が読むボードは、**そのユーザーが作成したタスクのみ**を表示する。

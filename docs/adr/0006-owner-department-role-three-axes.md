@@ -4,6 +4,8 @@
 
 accepted — [ADR-0004](0004-owner-and-agent-as-two-axes.md) を supersede する
 
+> 注記: [ADR-0008](0008-agent-identity-role-token-and-session-id.md) により「機械系トークンは AI 実行者ごとに発行」の帰結が amend された（実行者×機能の粒度）。
+
 ## 決定
 
 タスクの「誰がどうやるか」を三層で表現する。

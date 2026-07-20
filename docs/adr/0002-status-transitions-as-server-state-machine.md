@@ -4,6 +4,8 @@
 
 accepted
 
+> 注記: [ADR-0007](0007-in-review-state-and-review-cycle-limit.md) により遷移グラフと actor 方針が amend された（in-review 追加、in-progress → done の辺削除、レビュー通過・差し戻し時の自己レビュー排除）。以下の表と「actor 制約なし」は ADR-0002 採択時点の原決定であり、現在の実効規則は ADR-0007 を参照する。
+
 ## 決定
 
 `PATCH /api/board/{id}` による `status` 変更は、サーバー側で明示的な遷移グラフを唯一の真実として検証する。

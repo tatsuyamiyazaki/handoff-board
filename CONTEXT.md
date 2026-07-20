@@ -1,6 +1,6 @@
 # HANDOFF
 
-人間とAIエージェントが同じタスクリストを参照・更新する共同タスクボード。バックエンド（REST API + Firestore）と、その上に載るカンバンWeb UI、およびAIがローカルからタスクを読み書きするMCPサーバーで構成される。AIへのタスク受け渡しはディスパッチャー（廃止済み）による push ではなく、Claude Code / Cowork が MCP 経由で pull する。
+人間とAIエージェントが同じタスクリストを参照・更新する共同タスクボード。バックエンド（REST API + Firestore）と、その上に載るカンバンWeb UI、およびAIがローカルからタスクを読み書きするMCPサーバーで構成される。AIへのタスク受け渡しはディスパッチャー（廃止済み）による push ではなく、Claude Code / Cowork / Codex が MCP 経由で pull する。
 
 ## Language
 
@@ -13,7 +13,7 @@ _Avoid_: ボード列の意味で使わない（列は「レーン」と呼ぶ�
 _Avoid_: 単に「ボード」と呼ぶ（Firestoreの `board` コレクションと紛れる）
 
 **レーン (lane)**:
-カンバンUIの縦の列。1レーンは1つ以上の `status` をまとめて表示する論理グルーピング。To Do レーン = needs-ai + needs-human、In Progress レーン = in-progress、Blocked レーン = blocked。`done` はレーンを持たず archive へ移動する。`status` 値自体は5つのまま変えない。
+カンバンUIの縦の列。1レーンは1つ以上の `status` をまとめて表示する論理グルーピング。To Do レーン = needs-ai + needs-human、In Progress レーン = in-progress、In Review レーン = in-review、Blocked レーン = blocked、Done レーン = done。`status` 値は6つ（needs-ai / needs-human / in-progress / in-review / done / blocked、ADR-0007）。
 _Avoid_: カラム、ボード、status と1対1だと仮定する
 
 **タスク (task)**:
@@ -25,7 +25,7 @@ _Avoid_: チケット、アイテム、カード（UI上の表現を指すとき
 _Avoid_: 削除、ゴミ箱
 
 **オーナー (owner)**:
-タスクの担当主体。human / Cowork / Claude Code のいずれか。レーン分け・遷移ルール・初期 status を決める routing 軸であり、AI 系の場合は「どのAIがローカルから MCP 経由で pull するか」も決める。操作主体を表す `activity.actor` とは別概念。
+タスクの担当主体。human / Cowork / Claude Code / Codex のいずれか。レーン分け・遷移ルール・初期 status を決める routing 軸であり、AI 系の場合は「どのAIがローカルから MCP 経由で pull するか」も決める。操作主体を表す `activity.actor` とは別概念。
 _Avoid_: ユーザー、担当者（人間とAIを区別しない曖昧語）、ai-batch / ai-interactive（旧語彙・廃止）
 
 **AI部署 (department)**:

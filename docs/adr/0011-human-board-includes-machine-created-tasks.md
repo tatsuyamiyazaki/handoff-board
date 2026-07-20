@@ -2,7 +2,7 @@
 
 ## Status
 
-proposed — [ADR-0003](0003-per-user-board-scoping-by-created-by.md) を amend する（人間ボードの絞り込み規則の拡張）
+accepted — [ADR-0003](0003-per-user-board-scoping-by-created-by.md) を amend する（人間ボードの絞り込み規則の拡張）
 
 ## 決定
 
@@ -28,9 +28,9 @@ ADR-0003 の本来の目的は「未ログインで見せない」と「人間�
 
 ## 帰結
 
-- `shared/src/task.ts`: `Task` に `created_by_type: 'human' | 'machine'` を追加。`buildTask` の引数に認証種別を渡す配線が必要（[ADR-0007](0007-in-review-state-and-review-cycle-limit.md) の `TransitionDeps` への `type` 配線と同じ出どころ。実装時に共通化する）。
+- `shared/src/task.ts`: `Task` に `created_by_type: 'human' | 'machine'` を追加し、`buildTask` が必須の `actorType` から作成時に刻む。Firestore の既存データで欠落している場合は保守的に `human` として読む。
 - `api/src/repository/task-repository.ts`: `findAll` のフィルタを「`createdBy` 完全一致」から「`createdBy` 一致 ∨ `created_by_type === 'machine'`」の OR 条件に拡張。Firestore 実装は `Filter.or`（Admin SDK）または2クエリのマージ。in-memory 実装は述語の変更のみ。
 - `api/src/dev-seed.ts`: シードタスクに `created_by_type: 'machine'` を設定する。副作用として、ローカル開発で人間サインイン時にもシードが見えるようになる（従来は `created_by: null` のため不可視だった）。
 - web / handoff-mcp: 変更不要（機械系パスは全件のまま）。
 - ADR-0009 の「人間の監視下」・ADR-0010 の「Gate の可視化はボードが担う」は、本 ADR によって初めて成立する。**導入順序として、CEO 運用開始前に本 ADR の実装が必要**（ADR-0007 と並ぶ前提条件）。
-- accepted 時に ADR-0003 の Status に本 ADR による amend の注記を加える。
+- ADR-0003 の Status に、本 ADR による amend の注記を追加した。
