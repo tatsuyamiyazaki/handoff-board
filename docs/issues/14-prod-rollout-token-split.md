@@ -14,7 +14,7 @@ Type: HITL ／ Source: [docs/adr/0005](../adr/0005-remove-dispatcher-pull-via-mc
 - [x] ローカル `.env` は本番と**別値**のトークンを持つ（本番トークンをローカル開発と共有しない）
 - [x] handoff-mcp クライアント設定が `handoff-dev` / `handoff-review` の2エントリに分かれ、両方に `HANDOFF_OWNER=claude-code` がある
 - [x] API・web・MCP クライアント設定が同一タイミングで新版に切り替わり、切り替え後に MCP 経由で department / role 付きタスクが本番に作成できる
-- [ ] 本番カンバンで owner ドット・部署色チップ・ロールチップ・部署フィルタが動作する（**目視未実施**。配信アセットの検証のみ済 ── 下記「疎通確認の記録」参照）
+- [x] 本番カンバンで owner ドット・部署色チップ・ロールチップ・部署フィルタが動作する
 - [x] activity の actor / created_by に実行者×機能（`claude-code:dev` / `claude-code:reviewer`）の区別が記録される
 - [x] dev トークンでレビュー依頼したタスクを reviewer トークンで `done` にできる（自己レビュー排除の通過を本番で確認）
 - [x] `.env.example` と docs/DEPLOYMENT.md が新構成を反映している
@@ -33,9 +33,11 @@ in-review   → done        （dev で試行 → 422「実装者と同一 actor 
 in-review   → done        claude-code:reviewer
 ```
 
-あわせて reviewer 側の `list_tasks(status=in-review)` に dev 作成タスクが現れることを確認し、owner 前方一致照合が本番で機能することも押さえた。検証タスクは確認後に削除済み。
+あわせて reviewer 側の `list_tasks(status=in-review)` に dev 作成タスクが現れることを確認し、owner 前方一致照合が本番で機能することも押さえた。
 
-カンバン UI（受入条件の4つ目）は Chrome 拡張が未接続で目視できなかったため、Firebase Hosting の配信アセットのみ検証した。JS バンドルに `card__chip--department` / `card__chip--role` / `data-department` とフィルタラベル「AI部署」、role enum 値が含まれ、CSS に4部署の `[data-department=...]` 色と `[data-assignee=...]` の owner ドット色が含まれることを確認している。三軸対応版が配信されていること自体は確実だが、描画の目視確認は残っている。
+カンバン UI は表示用タスクを4件作って目視確認した。4部署（`engineering` / `contents` / `business` / `infrastructure`）の色チップ、3オーナー（`CLAUDE-CODE` / `COWORK` / `CODEX`）の owner ドット、ロールチップ、部署フィルタ、レーン配置（To Do 3件・In Progress 1件）がいずれも期待どおり動作した。
+
+検証に使ったタスクは確認後すべて削除済みで、ボードは 0 件に戻してある。
 
 ## 積み残し
 
