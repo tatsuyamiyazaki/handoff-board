@@ -2,7 +2,7 @@
 
 このドキュメントは **コードからは読み取れないインフラの現状と再現手順** をまとめたもの。
 機能仕様はコード＋`docs/adr/`、ドメイン用語は `CONTEXT.md` を参照。
-最終更新: 2026-06-02（API を Cloud Run、web を Firebase Hosting に初回デプロイ）。
+最終更新: 2026-07-30（`BOARD_TOKENS` を ADR-0008 の dev/reviewer 2本構成へ差し替え。初回デプロイは 2026-06-02）。
 
 ## 公開 URL
 
@@ -46,7 +46,7 @@
 | `CORS_ORIGIN` | `https://handoff-dashboard.web.app,https://handoff-dashboard.firebaseapp.com` | 平文 env |
 | `ALLOWED_EMAILS` | 人間ログインの許可メール（例: `tatsuya.miyazaki@gmail.com`） | 平文 env |
 | `ALLOWED_EMAIL_DOMAINS` | 許可ドメイン（例: `sunbit.co.jp`） | 平文 env |
-| `BOARD_TOKENS` | 機械系トークン→actor の JSON。actor は `owner[:機能]` 粒度（例 `{"<cc-dev-token>":"claude-code:dev","<cc-reviewer-token>":"claude-code:reviewer","<cc-ceo-token>":"claude-code:ceo","<cowork-token>":"cowork"}`、ADR-0008） | **Secret Manager**（`handoff-board-tokens:latest`） |
+| `BOARD_TOKENS` | 機械系トークン→actor の JSON。actor は `owner[:機能]` 粒度（ADR-0008）。**現行値（2026-07-30 差し替え）は `claude-code:dev` / `claude-code:reviewer` の2本**。cowork / codex は未発行で、必要になったら Secret に足してリビジョンを更新する | **Secret Manager**（`handoff-board-tokens:latest`） |
 | `PORT` | Cloud Run が自動注入（8080） | Cloud Run |
 
 - **`GOOGLE_APPLICATION_CREDENTIALS` は Cloud Run に設定しない**。ランタイムはメタデータ ADC（ランタイム SA）で Firestore に接続する。
@@ -90,10 +90,16 @@ owner/department/role の三軸モデルは enum を **3 箇所に複製**して
 
 切り替え手順:
 
-1. **トークン分離**: `handoff-board-tokens` Secret に AI 実行者ごとのトークンを入れた JSON を新バージョンとして登録する（例 `{"<cowork-token>":"cowork","<claude-code-token>":"claude-code"}`）。旧トークンは無効化する。
+1. **トークン分離**: `handoff-board-tokens` Secret に AI 実行者×機能ごとのトークンを入れた JSON を新バージョンとして登録する（例 `{"<dev トークン>":"claude-code:dev","<reviewer トークン>":"claude-code:reviewer"}`、ADR-0008）。**実装用とレビュー用は必ず別トークンにする** — 自己レビュー排除は actor の完全一致で判定するため、1本しか無いとレビュー依頼したタスクを自分で `done` にも差し戻しにもできず 422 で詰む。
    ```
    # 新しい JSON を Secret の新バージョンに（PowerShell は echo 相当を避け、ファイル経由が安全）
    gcloud secrets versions add handoff-board-tokens --data-file=<tokens.json> --project handoff-dashboard
+   # 旧バージョンの無効化（バージョン番号は versions list で確認）
+   gcloud secrets versions disable <N> --secret=handoff-board-tokens --project handoff-dashboard
+   ```
+   Secret のみ差し替える場合、コンテナ再ビルドは不要でリビジョン更新だけで `latest` が解決される:
+   ```
+   gcloud run services update handoff-api --region asia-northeast1 --project handoff-dashboard --update-secrets BOARD_TOKENS=handoff-board-tokens:latest
    ```
 2. **API 再デプロイ**: 下記「再デプロイ手順」。`--set-secrets BOARD_TOKENS=handoff-board-tokens:latest` で最新版を参照する。
 3. **web 再デプロイ**: 下記「Web」。三軸 UI（部署色チップ・ロールチップ・部署フィルタ）を含む。
@@ -119,8 +125,9 @@ ADR-0011 の人間ボードスコープ（`created_by` が当人 ∨ `created_by
   initializeApp({ credential: applicationDefault() });
   const db = getFirestore();
 
-  // 既知の機械系 actor 値（BOARD_TOKENS の actor と一致させる）
-  const MACHINE_ACTORS = ['cowork', 'claude-code:dev', 'claude-code:reviewer', 'claude-code:ceo'];
+  // 既知の機械系 actor 値（BOARD_TOKENS の actor と一致させる）。
+  // 末尾のメールは 2026-07-30 まで使っていた旧 actor（ADR-0002 の「actor=運用者メール」運用）。
+  const MACHINE_ACTORS = ['claude-code:dev', 'claude-code:reviewer', 't_miyazaki@sunbit.co.jp'];
 
   const snapshot = await db.collection('board').get();
   const batch = db.batch();
@@ -136,6 +143,28 @@ ADR-0011 の人間ボードスコープ（`created_by` が当人 ∨ `created_by
   console.log(`backfilled ${count} docs`);
   ```
 - 500 件を超える場合は `batch` を分割する（Firestore の 1 バッチ上限）。`archive` コレクションにも同様の旧ドキュメントがあれば同じ処理を適用する。
+
+## 旧 actor（メール）で作られたタスクと MCP の可視性
+
+2026-07-30 のトークン差し替え以前、機械系トークンの actor は**運用者メール**（`t_miyazaki@sunbit.co.jp`）だった（handoff-mcp ADR-0002、ADR-0008 で廃止）。したがって**それ以前に MCP 経由で作られたタスクの `created_by` はメール値**である。
+
+handoff-mcp は `created_by` を owner 前方一致（`created_by === HANDOFF_OWNER` ∨ `HANDOFF_OWNER + ':'` 始まり）で照合するため、これらの旧タスクは `list_tasks` / `get_task` から**見えない**。一方で Web カンバンからは `created_by_type='machine'` なので ADR-0011 のスコープに乗って見える。**表示と MCP 可視性が食い違う**ため、旧タスクを MCP から扱い続けたいなら `created_by` を現行 actor へ書き換える:
+
+```js
+// ADC 前提。board / archive の両方が対象。
+const OLD_ACTOR = 't_miyazaki@sunbit.co.jp';
+const NEW_ACTOR = 'claude-code:dev';
+
+for (const name of ['board', 'archive']) {
+  const snapshot = await db.collection(name).where('created_by', '==', OLD_ACTOR).get();
+  const batch = db.batch();
+  for (const doc of snapshot.docs) batch.update(doc.ref, { created_by: NEW_ACTOR });
+  if (!snapshot.empty) await batch.commit();
+  console.log(`${name}: ${snapshot.size} docs`);
+}
+```
+
+`activity` に残る過去の actor は履歴なので書き換えない（誰が操作したかの記録であり、可視性判定には使われない）。
 
 ## ローカル開発 vs 本番の差分（重要）
 
