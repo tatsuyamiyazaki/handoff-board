@@ -166,6 +166,8 @@ for (const name of ['board', 'archive']) {
 
 `activity` に残る過去の actor は履歴なので書き換えない（誰が操作したかの記録であり、可視性判定には使われない）。
 
+**2026-07-30 時点の実測: 該当 0 件**。トークン差し替え後の疎通確認で `board` / `archive` 両コレクションを直接読んだところ、どちらもドキュメント 0 件（旧 actor に限らずタスク自体が存在しない）だった。上のスクリプトは現時点で実行不要だが、旧環境からデータを持ち込む場合に備えて手順として残す。
+
 ## ローカル開発 vs 本番の差分（重要）
 
 1. **Firestore 検知**（`api/src/server.ts`）: `FIRESTORE_EMULATOR_HOST || GOOGLE_APPLICATION_CREDENTIALS || USE_FIRESTORE || K_SERVICE` のいずれかで Firestore を使う。
