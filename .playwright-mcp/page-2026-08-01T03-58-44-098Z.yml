@@ -1,0 +1,7 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "HANDOFF" [level=1] [ref=e6]
+      - paragraph [ref=e7]: 人間とAIの共同タスクボード
+    - button "Google でサインイン" [ref=e9] [cursor=pointer]
+  - paragraph [ref=e13]: サインインすると、あなたが作成したタスクと AI が作成したタスクのボードが表示されます。
