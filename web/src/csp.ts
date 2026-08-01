@@ -36,13 +36,16 @@ export function buildCspPolicy(authDomain?: string): string {
     "default-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
-    "script-src 'self'",
+    // Firebase Auth の signInWithPopup は gapi (apis.google.com) を実行時ロードする。
+    // これを塞ぐと auth/internal-error になる。
+    "script-src 'self' https://apis.google.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https:",
     // Desktop API origins are runtime-configurable, so build-time CSP cannot enumerate them.
     // Keep HTTPS broad for that approved feature; restrict HTTP to local emulators only.
-    "connect-src 'self' https: http://localhost:* http://127.0.0.1:* http://[::1]:*",
+    // CSP host-source は IPv6 リテラル（[::1]）非対応のため localhost / 127.0.0.1 のみ。
+    "connect-src 'self' https: http://localhost:* http://127.0.0.1:*",
     `frame-src ${frameSources.join(' ')}`,
   ].join('; ');
 }

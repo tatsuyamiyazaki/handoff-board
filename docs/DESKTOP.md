@@ -35,7 +35,7 @@ Google OAuth のループバック認証には、Firebase Authentication と**�
 
 renderer の Firebase 認証と API 接続には `web/.env` の `VITE_FIREBASE_*` および `VITE_API_BASE` が必要です。必要なキーはルートの `.env.example` も参照してください。
 
-本番 CSP の `connect-src` は、実行時に変更できる `apiBaseUrl` を許可するため HTTPS 接続先を限定していません。HTTP はローカル開発・エミュレーター用の `localhost`、`127.0.0.1`、`[::1]` のみに制限されるため、リモート API には HTTPS を使用してください。
+本番 CSP の `connect-src` は、実行時に変更できる `apiBaseUrl` を許可するため HTTPS 接続先を限定していません。HTTP はローカル開発・エミュレーター用の `localhost`、`127.0.0.1` のみに制限されるため、リモート API には HTTPS を使用してください（CSP の host-source は IPv6 リテラルに非対応のため `[::1]` は許可できません）。
 
 Cloud Run の `handoff-api` では、`CORS_ORIGIN` に `app://bundle` を追加してください。環境変数の確認・更新方法は [DEPLOYMENT.md](DEPLOYMENT.md) の Cloud Run 運用手順に従います。
 
