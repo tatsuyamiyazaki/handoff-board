@@ -66,6 +66,19 @@ describe('buildCspPolicy', () => {
     expect(policy).not.toContain('/sign-in');
   });
 
+  it('allows the Google APIs script that Firebase popup sign-in loads at runtime', () => {
+    const policy = buildCspPolicy();
+    const scriptDirective = policy
+      .split('; ')
+      .find((directive) => directive.startsWith('script-src'));
+
+    expect(scriptDirective?.split(' ')).toEqual([
+      'script-src',
+      "'self'",
+      'https://apis.google.com',
+    ]);
+  });
+
   it('blocks plugins and base-tag rewriting while limiting HTTP connections to loopback', () => {
     const policy = buildCspPolicy();
     const connectDirective = policy
@@ -74,13 +87,14 @@ describe('buildCspPolicy', () => {
 
     expect(policy).toContain("object-src 'none'");
     expect(policy).toContain("base-uri 'self'");
+    // CSP の host-source 文法は IPv6 リテラルを許容しないため、
+    // http://[::1]:* はブラウザに無視されコンソールエラーになるだけ。含めない。
     expect(connectDirective?.split(' ')).toEqual([
       'connect-src',
       "'self'",
       'https:',
       'http://localhost:*',
       'http://127.0.0.1:*',
-      'http://[::1]:*',
     ]);
     expect(connectDirective).not.toContain('http://api.example.com');
   });
